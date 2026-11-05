@@ -1,7 +1,8 @@
 /** Coordinate sequential network-wide preparation and capped hacking phases.
  * Usage: run cycle.js sigma-cosmetics
  * Requires task.js on home. Owns task.js processes and replaces inicio.js workers.
- * Stops only inicio.js workers during startup. Other scripts are preserved.
+ * Stops inicio.js workers during startup, including on home. Other scripts are preserved.
+ * Uses home RAM with 8 GB reserved in addition to running scripts.
  * @param {NS} ns
  */
 export async function main(ns) {
@@ -38,7 +39,7 @@ export async function main(ns) {
     }
     const pool = [];
     for (const host of hosts) {
-      if (host === "home" || host === "darkweb") continue;
+      if (host === "darkweb") continue;
       let server = ns.getServer(host);
       if (!server.hasAdminRights && server.numOpenPortsRequired <= openers.length) {
         try {
@@ -74,9 +75,10 @@ export async function main(ns) {
     for (const host of pool) {
       if (budget <= 0) break;
       const current = ns.getServer(host);
-      const threads = Math.min(budget, Math.floor((current.maxRam - current.ramUsed) / taskRam));
+      const reserved = host === "home" ? 8 : 0;
+      const threads = Math.min(budget, Math.floor((current.maxRam - current.ramUsed - reserved) / taskRam));
       if (threads < 1) continue;
-      if (!await ns.scp(task, host, "home")) {
+      if (host !== "home" && !await ns.scp(task, host, "home")) {
         ns.print("Copy failed on " + host); continue;
       }
       const pid = ns.exec(task, host, threads, operation, target);
@@ -91,4 +93,3 @@ export async function main(ns) {
     await ns.sleep(50);
   }
 }
-

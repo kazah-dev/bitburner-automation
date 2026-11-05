@@ -14,7 +14,7 @@ tail cycle.js sigma-cosmetics
 
 The optional first argument selects the target; sigma-cosmetics is the default. This default is an example, not an automatically optimized choice.
 
-The controller validates the target and rejects another running copy of itself before taking over. On its first network pass it stops processes named `inicio.js` on accessible remote hosts. It owns processes named `task.js`; reserve that filename for this controller. Other process names are preserved. Home and darkweb are excluded as worker hosts.
+The controller validates the target and rejects another running copy of itself before taking over. On its first network pass it stops processes named `inicio.js` on accessible hosts, including home. It owns processes named `task.js`; reserve that filename for this controller. Other process names are preserved. Darkweb is excluded as a worker host. On home, the controller keeps 8 GB free in addition to RAM used by existing processes; the remainder can run tasks. This reserve leaves room for inspection and other helpers, but is not a guarantee against unrelated processes starting later.
 
 Each phase waits for existing task.js processes, inspects the target and selects one operation:
 
@@ -58,6 +58,6 @@ Run one deployer at a time. Existing no-argument workers are skipped, existing d
 
 ## Validation and troubleshooting
 
-The scripts have been exercised in the Steam game: remote task execution, alternating grow/weaken phases, helper inventory, bounded Hacknet purchases, shared RAM, and rejection of legacy deployment during coordinated mode. In-game logs remain the authority for a particular save.
+The scripts have been exercised in the Steam game: complete prepare/hack cycles, helper inventory, bounded Hacknet purchases, shared RAM, and rejection of legacy deployment during coordinated mode. In-game logs remain the authority for a particular save.
 
 For missing files, failed launches or insufficient RAM, correct the reported condition and retry. For slow production, inspect target money, security, operation duration and preparation rounds. Record income across a full cycle rather than inferring it from thread counts.
