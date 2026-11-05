@@ -22,11 +22,24 @@ The chosen target must already have root access, money and a required hacking le
 | [cycle.js](cycle.js) | Coordinate preparation and capped hacking phases across available servers |
 | [task.js](task.js) | Execute a single operation with the threads assigned by the controller |
 | [inspect.js](inspect.js) | Inventory contracts, faction routes, access requirements and candidate targets |
+| [monitor.js](monitor.js) | Display a live operations dashboard inside the game |
 | [share.js](share.js) | Share spare RAM to improve faction reputation gain |
 | [hacknet.js](hacknet.js) | Make bounded Hacknet investments using a payback estimate |
 | [deploy.js](deploy.js) and [inicio.js](inicio.js) | Preserve the independent-worker baseline as an alternative operating mode |
 
 Source comments and the operating guide describe parameters, side effects and limitations. Use **Active Scripts** and script logs to inspect the running state.
+
+## Live dashboard
+
+Run `monitor.js` on home to open an English operations panel. It refreshes every two seconds and tracks cash, script income, target preparation, worker threads, network RAM, programs, contracts and faction access requirements. It follows the active `cycle.js` target automatically and uses the game's supported tail window.
+
+```text
+mem monitor.js
+run monitor.js
+tail monitor.js
+```
+
+The monitor is read-only and needs no Singularity access. Exact faction reputation, current faction work and queued augmentations remain in the game's dedicated screens. See [dashboard operation and metric definitions](OPERATIONS.md#live-monitor) for RAM requirements and controls.
 
 ## Operating principles
 

@@ -38,6 +38,26 @@ This is sequential phase coordination, not a timed HWGW batch scheduler. It does
 
 `run inspect.js` performs a read-only network traversal. It reports coding contracts, routes to faction servers, unrooted hosts and a rough target ranking. The ranking estimates gross hack income per thread at current conditions; it excludes growth, weakening and preparation. It is a screening aid, not a profitability forecast. Contract answers and backdoors require separate action.
 
+## Live monitor
+
+Save `monitor.js` on home and run `mem monitor.js` before starting it. The monitor uses 7.20 GB in Steam v3.0.1, fits within the controller's 8 GB reserve, and is preserved by the controller. It does consume RAM that could otherwise run other helpers. Check free RAM before starting an inspector at the same time.
+
+```text
+run monitor.js
+tail monitor.js
+kill monitor.js
+```
+
+The optional argument sets refresh time in milliseconds, with a minimum of 1000. For example, `run monitor.js 5000` refreshes every five seconds. Use matching arguments when reopening or stopping that instance (`tail monitor.js 5000`). Only one monitor instance may run on home. Closing its window hides the panel while data collection continues; the Stop button ends the script. After an augmentation reset, start it again.
+
+The dashboard is read-only: it never roots, buys, launches workers, changes faction work or resets the game. It traverses the network each refresh, follows a controller's target argument and groups active `task.js` operations. Network RAM includes home and rooted hosts with memory, including purchased servers. Process and thread counts are distinct. A phase marked BETWEEN PHASES means no task.js workers were visible in that snapshot, not that the controller has failed.
+
+Script income shows the game's active-script and since-augmentation-reset averages. They can differ as workers finish and restart; neither predicts future income. Cash flow measures balance change over up to roughly 60 seconds of samples and includes spending, rewards and all other balance changes. It warms up for five seconds. Hacknet production assumes money-producing nodes; hash-producing servers are outside the supported scope. Operation times are estimates at current skill and security, not countdowns for already running tasks.
+
+Faction membership, hacking requirements, root access and backdoor status are live. Exact reputation, active faction work and queued augmentations require progression-gated APIs and are deliberately left to the Factions and Augmentations screens. The next missing port opener uses standard game prices and marks affordability, not an automatic purchase. A few discovered contracts are listed; use inspect.js for their full routes.
+
+The panel was verified in Steam v3.0.1 with live target state and refreshes. Mocked active and idle network snapshots also check missing-controller behavior, faction gates, contract discovery and invalid-number handling. It uses standard logs and supported `ns.ui` tail controls, without reading or modifying the game's DOM.
+
 ## Faction reputation
 
 `run share.js -t 2` continuously shares RAM. Choose the thread count using `mem share.js` and current free RAM. This reserves RAM while running and does not choose faction work or join factions. Stop it from Active Scripts when that RAM is needed elsewhere.
