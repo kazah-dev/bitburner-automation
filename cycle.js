@@ -66,9 +66,12 @@ export async function main(ns) {
     let operation = "hack";
     let budget = Math.max(1, Math.floor(0.20 / Math.max(ns.hackAnalyze(target), 0.000001)));
     if (server.hackDifficulty > server.minDifficulty + 0.10) {
-      operation = "weaken"; budget = Infinity;
+      operation = "weaken";
+      budget = Math.ceil((server.hackDifficulty - server.minDifficulty) / ns.weakenAnalyze(1));
     } else if (server.moneyAvailable < server.moneyMax * 0.99) {
-      operation = "grow"; budget = Infinity;
+      operation = "grow";
+      const multiplier = server.moneyMax / Math.max(1, server.moneyAvailable);
+      budget = Math.max(1, Math.ceil(ns.growthAnalyze(target, multiplier)));
     }
     const pids = [];
     let allocated = 0;

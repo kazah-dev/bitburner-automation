@@ -15,6 +15,8 @@ run cycle.js sigma-cosmetics
 
 The chosen target must already have root access, money and a required hacking level within your reach. Check each script's RAM requirement with `mem` and leave sufficient free RAM on home. The controller can take multiple preparation rounds before producing money.
 
+During preparation, the controller estimates how many worker threads the target needs to recover its money or reach minimum security. It allocates up to that number across available hosts, then reads the actual result before scheduling another phase. Capacity left over can support other work, including faction reputation sharing.
+
 ## Components
 
 | Component | Responsibility |
