@@ -22,6 +22,7 @@ The chosen target must already have root access, money and a required hacking le
 | [cycle.js](cycle.js) | Coordinate preparation and capped hacking phases across available servers |
 | [task.js](task.js) | Execute a single operation with the threads assigned by the controller |
 | [inspect.js](inspect.js) | Inventory contracts, faction routes, access requirements and candidate targets |
+| [contracts.js](contracts.js) | Find and solve supported coding contracts across the network |
 | [monitor.js](monitor.js) | Display a live operations dashboard inside the game |
 | [share.js](share.js) | Share spare RAM to improve faction reputation gain |
 | [hacknet.js](hacknet.js) | Make bounded Hacknet investments using a payback estimate |
@@ -40,6 +41,18 @@ tail monitor.js
 ```
 
 The monitor is read-only and needs no Singularity access. Exact faction reputation, current faction work and queued augmentations remain in the game's dedicated screens. See [dashboard operation and metric definitions](OPERATIONS.md#live-monitor) for RAM requirements and controls.
+
+## Automatic coding contracts
+
+On `home`, run `mem contracts.js` to check the RAM requirement, then `run contracts.js` with one thread and no arguments. The first scan starts immediately. The worker scans the network again every minute and runs alongside the hacking controller. Use `tail contracts.js` for scan counts and `kill contracts.js` to stop it. Start it again after an augmentation reset.
+
+| Contract | How the worker solves it |
+| --- | --- |
+| Algorithmic Stock Trader I | Tracks the lowest earlier price and the best profit from one trade. Returns zero when buying would lose money. |
+| Encryption I: Caesar Cipher | Shifts each uppercase letter left by the supplied key and preserves spaces. |
+| Find Largest Prime Factor | Divides out each prime factor and compares the last divisor with the remaining factor. |
+
+Successful submissions print the host, filename and reward in the terminal. Unsupported types and unexpected input stay available for manual review. If the game rejects an answer, the worker records the contract in `contracts-rejected.txt` on home and skips it on subsequent scans and restarts.
 
 ## Operating principles
 
