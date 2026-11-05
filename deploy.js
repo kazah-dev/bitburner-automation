@@ -3,6 +3,10 @@
  */
 export async function main(ns) {
   const worker = "inicio.js";
+  if (ns.ps("home").some(p => p.filename === "cycle.js")) {
+    ns.tprint("Stop cycle.js before using legacy deployment.");
+    return;
+  }
   if (ns.getHostname() !== "home") {
     ns.tprint("Run deploy.js from home.");
     return;
@@ -16,6 +20,9 @@ export async function main(ns) {
   const openers = [
     ["BruteSSH.exe", host => ns.brutessh(host)],
     ["FTPCrack.exe", host => ns.ftpcrack(host)],
+    ["relaySMTP.exe", host => ns.relaysmtp(host)],
+    ["HTTPWorm.exe", host => ns.httpworm(host)],
+    ["SQLInject.exe", host => ns.sqlinject(host)],
   ].filter(([program]) => ns.fileExists(program, "home"));
   const servers = ["home"];
   const discovered = new Set(servers);

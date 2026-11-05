@@ -1,39 +1,41 @@
 # Bitburner Automation
 
-Netscript tools for building and operating an automated Bitburner network. The project brings together hacking workers, network discovery and deployment, with an emphasis on clear behavior, efficient resource use and repeatable execution.
+Netscript tools for operating an automated Bitburner network: discovery, coordinated hacking, deployment and progression support. The project emphasizes explicit behavior, resource awareness and repeatable execution.
 
 ## Getting started
 
-Copy the JavaScript files into the in-game script editor on `home`, keeping their filenames. Read the source comments and check the RAM requirements with `mem` before launching a script.
+Copy the JavaScript files into the in-game editor on `home`, preserving their filenames. Read [the operating guide](OPERATIONS.md) before replacing an existing setup.
 
 ```text
 home
-mem inicio.js
-mem deploy.js
-run deploy.js
+mem cycle.js
+mem task.js
+run cycle.js sigma-cosmetics
 ```
 
-The worker target must be accessible and within your hacking skill. Port-opening programs belong on `home`. Available programs and server access determine how far a deployment can expand.
+The chosen target must already have root access, money and a required hacking level within your reach. Check each script's RAM requirement with `mem` and leave sufficient free RAM on home. The controller can take multiple preparation rounds before producing money.
 
 ## Components
 
-- [Hacking worker](inicio.js) — prepares a target and runs its hacking cycle.
-- [Network deployment](deploy.js) — discovers servers, attempts supported access methods and starts workers using available RAM.
+| Component | Responsibility |
+| --- | --- |
+| [cycle.js](cycle.js) | Coordinate preparation and capped hacking phases across available servers |
+| [task.js](task.js) | Execute a single operation with the threads assigned by the controller |
+| [inspect.js](inspect.js) | Inventory contracts, faction routes, access requirements and candidate targets |
+| [share.js](share.js) | Share spare RAM to improve faction reputation gain |
+| [hacknet.js](hacknet.js) | Make bounded Hacknet investments using a payback estimate |
+| [deploy.js](deploy.js) and [inicio.js](inicio.js) | Preserve the independent-worker baseline as an alternative operating mode |
 
-The source files define the current parameters and supported operations. Use **Active Scripts** and the in-game terminal reports to inspect the live state, resource consumption and production.
+Source comments and the operating guide describe parameters, side effects and limitations. Use **Active Scripts** and script logs to inspect the running state.
 
 ## Operating principles
 
-Deployment is designed for deliberate, repeatable runs. Run one deployer at a time and keep worker files consistent across servers. Review each script before running it against an existing setup, especially when changing targets or replacing a previous version.
+Run a single controller and choose one hacking mode at a time. Keep worker copies consistent, inspect failures, and distinguish allocated capacity from measured income. Compare production over similar time windows, including preparation costs when evaluating targets.
 
-Track income over comparable time windows before drawing conclusions about performance. Network size and allocated threads are capacity measures, while profitability also depends on target conditions, timing and coordination.
+The scripts operate within Bitburner's simulated environment. They do not automate faction membership, augmentation installation or resets. Purchases made by the Hacknet helper use game currency and explicit budget limits.
 
 ## Development
 
-Changes are published with their purpose, usage and validation. Repository history records the evolution of the implementation. Live character statistics, balances and server counts belong to the running game and its logs.
+Changes are published with their purpose, usage and validation. Commit history records the implementation's evolution; live levels, balances and network counts stay in the game and its logs.
 
-The project evolves through small, verifiable improvements to target selection, resource allocation, worker coordination and progression support.
-
-## Scope
-
-These tools use Bitburner’s simulated environment and Netscript API. Compatibility, RAM costs and available actions depend on the game version and progression state. Check the in-game documentation when adapting the scripts.
+Compatibility, RAM costs and available APIs depend on the game version and progression state. Consult the in-game documentation when adapting the tools.
