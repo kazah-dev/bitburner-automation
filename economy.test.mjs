@@ -5,7 +5,7 @@ const {main}=await import('data:text/javascript;base64,'+Buffer.from(source).toS
 for(const failure of [false,true]){
  let cycles=0,id=20; const starts=[],killed=[];
  const procs=[{filename:'economy.js',pid:1,args:[]},{filename:'share.js',pid:2,args:['cycle-fill',99]},{filename:'custom.js',pid:3,args:[]}];
- const ns={disableLog(){},getHostname:()=> 'home',getScriptName:()=> 'economy.js',ps:()=>procs,
+ const ns={pid:1,disableLog(){},getHostname:()=> 'home',getScriptName:()=> 'economy.js',ps:()=>procs,
  getScriptRam:()=>10,getServerMaxRam:()=>64,getServerUsedRam:()=>procs.some(p=>p.pid===2)?60:10,
  kill(pid){killed.push(pid);procs.splice(procs.findIndex(p=>p.pid===pid),1);},
  exec(f,_h,_t,...args){starts.push(f);if(failure)return 0;procs.push({filename:f,pid:++id,args});return id;},
@@ -14,4 +14,18 @@ for(const failure of [false,true]){
  assert.deepEqual(starts,['contracts.js','monitor.js','cycle.js']);assert.deepEqual(killed,[2]);
  assert(procs.some(p=>p.filename==='custom.js'));
 }
-console.log('PASS: ordered startup, no duplicate services, failure backoff and preservation of unrelated processes.');
+// Simulate Autoexec and a saved supervisor starting before either can exit.
+// Exactly one must survive, independent of which main() runs first.
+for(const order of [[1,2],[2,1]]){
+ const procs=[{filename:'economy.js',pid:1},{filename:'economy.js',pid:2}];
+ const owners=[],starts=[];
+ const ns={disableLog(){},getHostname:()=> 'home',getScriptName:()=> 'economy.js',ps:()=>procs,
+ getScriptRam:()=>4,getServerMaxRam:()=>1024,getServerUsedRam:()=>8,
+ exec(file){starts.push(file);procs.push({filename:file,pid:20+starts.length});return 20+starts.length;},
+ tprint(){},sleep:async()=>{throw Error('ALIVE');}};
+ for(const pid of order){
+   try{await main({...ns,pid});}catch(e){assert.equal(e.message,'ALIVE');owners.push(pid);}
+ }
+ assert.deepEqual(owners,[1]);assert.deepEqual(starts,['contracts.js','monitor.js','cycle.js']);
+}
+console.log('PASS: reload ownership, ordered startup, no duplicate services, failure backoff and preservation of unrelated processes.');

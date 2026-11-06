@@ -8,7 +8,9 @@ Run `economy.js` on home to supervise `contracts.js`, `monitor.js` and `cycle.js
 
 Stop the supervisor before intentionally stopping a core service. It does not reset the game, choose faction work, install augmentations or buy anything. To start it when opening the game, enter `economy.js` in **Options → System → Autoexec Script + Args**. This uses the game's startup setting and adds no Windows task. Check memory requirements before enabling startup on a small home server.
 
-Run `node economy.test.mjs` outside Bitburner for service ordering, duplicate prevention, failed-launch backoff and worker ownership checks.
+Autoexec runs when loading the game; installing augmentations still requires starting the supervisor again. On reload, Autoexec can overlap with the saved supervisor. The lowest-PID supervisor keeps running while newer copies exit, preventing both copies from shutting down together.
+
+Run `node economy.test.mjs` outside Bitburner for service ordering, simultaneous reload ownership in both startup orders, duplicate prevention, failed-launch backoff and worker ownership checks.
 
 ### Manual startup
 

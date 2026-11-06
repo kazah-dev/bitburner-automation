@@ -3,7 +3,9 @@
 export async function main(ns) {
   ns.disableLog('ALL');
   if(ns.getHostname()!=='home')throw Error('Run economy.js on home.');
-  if(ns.ps('home').filter(p=>p.filename===ns.getScriptName()).length>1)return;
+  // Reloading can start both Autoexec and a saved instance together. Elect one
+  // owner deterministically so simultaneous copies cannot both exit.
+  if(ns.ps('home').some(p=>p.filename===ns.getScriptName()&&p.pid<ns.pid))return;
   const services=[['contracts.js',[]],['monitor.js',[2000]],['cycle.js',['auto',32,'share',4]]];
   const retry=new Map();
   while(true){

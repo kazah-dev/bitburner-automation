@@ -14,7 +14,7 @@ mem share.js
 run cycle.js auto
 ```
 
-For unattended service recovery, run `economy.js` instead. It starts missing contract, dashboard and controller services in that order, checks every 30 seconds and backs off for five minutes after each launch attempt. Existing instances and their arguments are preserved. Stop `economy.js` first when you intentionally want a service to remain stopped. It makes no purchases and does not reset the game.
+For unattended service recovery, run `economy.js` instead. It starts missing contract, dashboard and controller services in that order, checks every 30 seconds and backs off for five minutes after each launch attempt. Existing instances and their arguments are preserved. If Autoexec and a saved supervisor start together, the lowest-PID instance remains active. Stop `economy.js` first when you intentionally want a service to remain stopped. It makes no purchases and does not reset the game.
 
 Save `cycle.js`, `task.js` and `share.js` on home. Check their RAM requirements with `mem`. The controller discovers the network, uses available port-opening programs and runs independent cycles on up to four accessible money targets. It can take multiple preparation rounds before producing money.
 
