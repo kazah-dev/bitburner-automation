@@ -34,7 +34,7 @@ Source comments and the operating guide describe parameters, side effects and li
 
 ## Live dashboard
 
-Run `monitor.js` on home to open an English operations panel. It refreshes every two seconds and tracks cash, script income, target preparation, worker threads, network RAM, programs, contracts and faction access requirements. It follows the active `cycle.js` target automatically and uses the game's supported tail window.
+Run `monitor.js` on home to open **Operations desk** in the game. **Overview** explains the current hacking phase, charts your balance and shows upcoming faction unlocks. **Network** lets you pick a server and follow the route to it. **Details** breaks down income, scripts, character stats and open contracts. The dashboard follows the active controller target and refreshes every two seconds by default.
 
 ```text
 mem monitor.js
@@ -42,7 +42,7 @@ run monitor.js
 tail monitor.js
 ```
 
-The monitor is read-only and needs no Singularity access. Exact faction reputation, current faction work and queued augmentations remain in the game's dedicated screens. See [dashboard operation and metric definitions](OPERATIONS.md#live-monitor) for RAM requirements and controls.
+To pin a personal milestone, start the monitor with a refresh interval and quoted goal, for example `run monitor.js 2000 "Save for the next home upgrade"`. Reopen that instance from **Active Scripts**. Read [the monitor guide](OPERATIONS.md#live-monitor) for chart definitions, controls and the distinction between live data and the pinned reminder.
 
 ## Automatic coding contracts
 

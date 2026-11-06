@@ -40,23 +40,22 @@ This is sequential phase coordination, not a timed HWGW batch scheduler. It does
 
 ## Live monitor
 
-Save `monitor.js` on home and run `mem monitor.js` before starting it. The monitor uses 7.20 GB in Steam v3.0.1, fits within the controller's 8 GB reserve, and is preserved by the controller. It does consume RAM that could otherwise run other helpers. Check free RAM before starting an inspector at the same time.
+Start `monitor.js` on home and check the installed version's RAM requirement with `mem monitor.js`. Open its log from **Active Scripts** at any time. Closing the window hides it. Stopping the process clears the chart history. Start a fresh instance after installing augmentations.
 
 ```text
 run monitor.js
-tail monitor.js
-kill monitor.js
+run monitor.js 2000 "Your next faction milestone"
 ```
 
-The optional argument sets refresh time in milliseconds, with a minimum of 1000. For example, `run monitor.js 5000` refreshes every five seconds. Use matching arguments when reopening or stopping that instance (`tail monitor.js 5000`). Only one monitor instance may run on home. Closing its window hides the panel while data collection continues; the Stop button ends the script. After an augmentation reset, start it again.
+Choose one command. The first argument is the sample interval in milliseconds (default 2000, minimum 1000). The optional text pins a reminder on Overview. It stays as entered until the monitor is restarted. If using terminal `tail` or `kill`, supply the same script arguments used at launch.
 
-The dashboard is read-only: it never roots, buys, launches workers, changes faction work or resets the game. It traverses the network each refresh, follows a controller's target argument and groups active `task.js` operations. Network RAM includes home and rooted hosts with memory, including purchased servers. Process and thread counts are distinct. A phase marked BETWEEN PHASES means no task.js workers were visible in that snapshot, not that the controller has failed.
+**Overview** translates the active target operation into a short explanation. The balance chart records up to ten minutes of samples, starting at launch. Its vertical scale follows the observed range. Balance includes purchases, contracts and other income. Faction bars compare the player's current hacking level with each server's requirement. Use the game's character overview or Factions screen for live reputation and Augmentations for the install queue.
 
-Script income shows the game's active-script and since-augmentation-reset averages. They can differ as workers finish and restart; neither predicts future income. Cash flow measures balance change over up to roughly 60 seconds of samples and includes spending, rewards and all other balance changes. It warms up for five seconds. Hacknet production assumes money-producing nodes; hash-producing servers are outside the supported scope. Operation times are estimates at current skill and security, not countdowns for already running tasks.
+**Network** lets you select a server, follow its route from home and inspect its memory, access and activity. The memory ranking shows the five busiest hosts by allocated GB. Network capacity includes rooted servers with RAM and home. Free memory can be available between operations even when the controller is healthy.
 
-Faction membership, hacking requirements, root access and backdoor status are live. Exact reputation, active faction work and queued augmentations require progression-gated APIs and are deliberately left to the Factions and Augmentations screens. The next missing port opener uses standard game prices and marks affordability, not an automatic purchase. A few discovered contracts are listed; use inspect.js for their full routes.
+**Details** separates net cash change over the last minute from active-script income and average script income since the last augmentation reset. Hacknet income assumes money-producing nodes. Operation durations are estimates at the current skill and security levels. Open contracts list the host and filename for each discovered puzzle.
 
-The panel was verified in Steam v3.0.1 with live target state and refreshes. Mocked active and idle network snapshots also check missing-controller behavior, faction gates, contract discovery and invalid-number handling. It uses standard logs and supported `ns.ui` tail controls, without reading or modifying the game's DOM.
+The monitor uses the game's React log output and tail controls. Switching views only changes the display. It runs alongside the controller and contract worker without Singularity access.
 
 ## Faction reputation
 
