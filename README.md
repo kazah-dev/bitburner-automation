@@ -64,6 +64,7 @@ On `home`, run `mem contracts.js` to check the RAM requirement, then `run contra
 | Encryption I: Caesar Cipher | Shifts each uppercase letter left by the supplied key and preserves spaces. |
 | Find Largest Prime Factor | Divides out each prime factor and compares the last divisor with the remaining factor. |
 | Subarray with Maximum Sum | Finds the best nonempty contiguous sum in one pass, including all-negative arrays. |
+| Total Ways to Sum | Counts unordered integer partitions with at least two parts. Rejects unsafe numeric results and inputs outside the supported range of 1–1,000. |
 
 Successful submissions print the host, filename and reward in the terminal. Unsupported types and unexpected input stay available for manual review. If the game rejects an answer, the worker records the contract in `contracts-rejected.txt` on home and skips it on subsequent scans and restarts.
 

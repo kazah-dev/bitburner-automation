@@ -3,7 +3,22 @@ const solvers = new Map([
   ["Encryption I: Caesar Cipher", caesarCipher],
   ["Find Largest Prime Factor", largestPrimeFactor],
   ["Subarray with Maximum Sum", maximumSubarray],
+  ["Total Ways to Sum", totalWaysToSum],
 ]);
+
+/** Unordered integer partitions, excluding the single-part partition. */
+export function totalWaysToSum(value) {
+  if (!Number.isSafeInteger(value) || value < 1 || value > 1000) return;
+  const ways = Array(value + 1).fill(0);
+  ways[0] = 1;
+  for (let part = 1; part < value; part++) {
+    for (let sum = part; sum <= value; sum++) {
+      ways[sum] += ways[sum - part];
+      if (!Number.isSafeInteger(ways[sum])) return;
+    }
+  }
+  return ways[value];
+}
 
 export function maximumSubarray(values) {
   if (!Array.isArray(values) || !values.length || !values.every(Number.isSafeInteger)) return;
