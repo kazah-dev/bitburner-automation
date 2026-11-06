@@ -82,6 +82,14 @@ The monitor uses the game's React log output and tail controls. Switching views 
 
 `run share.js -t 2` continuously shares RAM. Choose the thread count using `mem share.js` and current free RAM. This reserves RAM while running and does not choose faction work or join factions. Stop it from Active Scripts when that RAM is needed elsewhere.
 
+## Cloud capacity
+
+`fleet.js` is a one-shot planner for the Bitburner 3 cloud API. Its positional arguments are RAM in GB, desired named-server count, maximum total spending, minimum remaining cash and `preview` or `apply`. Defaults are `1024 1 60000000 90000000 preview`. Preview makes no purchases.
+
+`run fleet.js 1024 1 60000000 90000000 apply` creates `kazah-01` only if the current quote fits both financial limits and a cloud slot is available. The count refers to names `kazah-01` through `kazah-NN`, not an additional count each run. Existing names are skipped without modification, including undersized servers. It does not upgrade, replace or delete them. Purchases are checked individually, and a failed purchase stops the run. Other scripts spending money concurrently are outside its reserve guarantee.
+
+The running controller discovers new capacity at its next phase. Check the monitor for increased network RAM and workers. Cloud servers are lost on augmentation installation; buy capacity when its production benefits justify that cost. Run `node fleet.test.mjs` outside the game to validate preview behavior, spending caps, reserves and repeat execution.
+
 ## Hacknet investments
 
 `run hacknet.js 500000` runs a one-shot investment pass. Spending is capped at the smaller of the argument and 10% of the initial cash balance. Each candidate purchase must have an estimated payback within 30 minutes.

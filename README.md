@@ -33,6 +33,7 @@ To pin a target or disable automatic sharing, use `run cycle.js sigma-cosmetics 
 | [monitor.js](monitor.js) | Display a live operations dashboard inside the game |
 | [share.js](share.js) | Share spare RAM to improve faction reputation gain |
 | [hacknet.js](hacknet.js) | Make bounded Hacknet investments using a payback estimate |
+| [fleet.js](fleet.js) | Preview or purchase cloud capacity within a spending cap and cash reserve |
 | [deploy.js](deploy.js) and [inicio.js](inicio.js) | Preserve the independent-worker baseline as an alternative operating mode |
 
 Source comments and the operating guide describe parameters, side effects and limitations. Use **Active Scripts** and script logs to inspect the running state.
@@ -65,6 +66,8 @@ The summary strip tracks script income, recent hacking XP per hour, available me
 
 ## Operating principles
 
+For additional worker capacity, `run fleet.js` previews one 1,024 GB cloud server with a $60m spending cap and $90m cash reserve. Use `run fleet.js 1024 1 60000000 90000000 apply` to place that order. It preserves existing names, stops when limits are reached and never deletes or replaces a server. See [cloud capacity](OPERATIONS.md#cloud-capacity) before choosing limits.
+
 Run a single controller and choose one hacking mode at a time. Keep worker copies consistent, inspect failures, and distinguish allocated capacity from measured income. Compare production over similar time windows, including preparation costs when evaluating targets.
 
 The scripts operate within Bitburner's simulated environment. They do not automate faction membership, augmentation installation or resets. Purchases made by the Hacknet helper use game currency and explicit budget limits.
@@ -76,3 +79,5 @@ Changes are published with their purpose, usage and validation. Commit history r
 Run `node cycle.test.mjs` and `node monitor.test.mjs` outside the game. The deterministic suites cover preparation-aware ranking, switch hysteresis, RAM reserves, worker ownership, restart draining, new opener detection, failed copies or launches, and missing or stale dashboard telemetry. They do not replace in-game performance measurements.
 
 Compatibility, RAM costs and available APIs depend on the game version and progression state. Consult the in-game documentation when adapting the tools.
+
+The fleet planner has a separate regression suite: `node fleet.test.mjs`.
