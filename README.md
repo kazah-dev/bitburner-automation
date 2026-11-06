@@ -56,6 +56,8 @@ On `home`, run `mem contracts.js` to check the RAM requirement, then `run contra
 
 Successful submissions print the host, filename and reward in the terminal. Unsupported types and unexpected input stay available for manual review. If the game rejects an answer, the worker records the contract in `contracts-rejected.txt` on home and skips it on subsequent scans and restarts.
 
+The summary strip tracks script income, recent hacking XP per hour, available memory and running processes. Open **Trends** to compare balance, experience, RAM use and target worker threads over the same ten-minute window. Hacking XP includes every source. The hourly rate extrapolates the last minute of samples and can jump when an operation completes.
+
 ## Operating principles
 
 Run a single controller and choose one hacking mode at a time. Keep worker copies consistent, inspect failures, and distinguish allocated capacity from measured income. Compare production over similar time windows, including preparation costs when evaluating targets.

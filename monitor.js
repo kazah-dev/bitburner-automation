@@ -56,20 +56,20 @@ const phases = {
   waiting: ["Between operations", "The controller is checking the target before assigning its next job.", palette.blue],
   idle: ["Controller offline", "Start cycle.js on home to coordinate the network.", palette.gold],
 };
-function balanceChart(history) {
-  if (history.length < 2) return small("Collecting the first balance samples…");
-  const values = history.map(p => p.cash);
+function trendChart(history, field, format, color, name) {
+  if (history.length < 2) return small("Collecting the first samples…");
+  const values = history.map(p => p[field]);
   const low = Math.min(...values), high = Math.max(...values);
   const first = history[0], last = history[history.length - 1];
   const points = history.map(p => {
     const x = 3 + 494 * (p.time - first.time) / Math.max(1, last.time - first.time);
-    const y = high === low ? 40 : 75 - 68 * (p.cash - low) / (high - low);
+    const y = high === low ? 40 : 75 - 68 * (p[field] - low) / (high - low);
     return x.toFixed(1) + "," + y.toFixed(1);
   }).join(" ");
-  return box({}, h("svg", {viewBox: "0 0 500 82", preserveAspectRatio: "none", style: {width:"100%", height:76}, role:"img", "aria-label":"Cash balance over the sampled period"},
-    h("polygon", {points:"3,81 " + points + " 497,81",fill:"#24463f"}),
-    h("polyline", {points, fill:"none", stroke:palette.mint, strokeWidth:2.5, vectorEffect:"non-scaling-stroke"})),
-    small(Math.round((last.time-first.time)/1000) + " seconds shown · Range " + cash(low) + " – " + cash(high)));
+  return box({}, h("svg", {viewBox: "0 0 500 82", preserveAspectRatio: "none", style: {width:"100%", height:76}, role:"img", "aria-label":name + " over the sampled period"},
+    h("polygon", {points:"3,81 " + points + " 497,81",fill:color, opacity:0.12}),
+    h("polyline", {points, fill:"none", stroke:color, strokeWidth:2.5, vectorEffect:"non-scaling-stroke"})),
+    small(Math.round((last.time-first.time)/1000) + " seconds shown · Range " + format(low) + " – " + format(high)));
 }
 function operation(d) {
   const [title, description, color] = phases[d.phase] ?? phases.waiting;
@@ -96,7 +96,7 @@ function roadmap(d, goal) {
     }));
 }
 function overview(d, history, goal) {
-  return box({display:"grid",gap:12},grid(operation(d),card("Balance history",digits(cash(d.player.money),palette.mint),balanceChart(history))),
+  return box({display:"grid",gap:12},grid(operation(d),card("Balance history",digits(cash(d.player.money),palette.mint),trendChart(history,"cash",cash,palette.mint,"Balance"))),
     grid(roadmap(d,goal),card("Background work",
       h("strong",null,d.scanner ? "Contract scanner online" : "Contract scanner offline"),
       small(d.contracts.length + " contract files on the network. Supported puzzles are attempted by contracts.js."),
@@ -135,20 +135,62 @@ function details(d, history) {
       small(next?"Next: "+next[0]+" · "+cash(next[1])+(p.money>=next[1]?" · Affordable":""):"All port openers acquired."))),
     card("Open contracts",...(d.contracts.length?d.contracts.map(c=>small(c.host+" / "+c.file)):[small("No contract files found on the latest scan.")])));
 }
+const gb = n => fmt.format(n) + " GB";
+const xp = n => fmt.format(n) + " XP";
+function indicators(d, history) {
+  const first = history.find(sample => sample.time >= d.time - 60000);
+  const seconds = first ? (d.time - first.time) / 1000 : 0;
+  const xpGain = first ? d.player.exp.hacking - first.xp : 0;
+  const tile = (title, value, note, color) => box({borderTop:"2px solid "+color,background:palette.panel,padding:"9px 12px",borderRadius:6},
+    label(title),box({fontSize:22,fontWeight:700,color},value),small(note));
+  return box({display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(160px,100%),1fr))",gap:8,marginBottom:12},
+    tile("Script income",rate(d.income[1]),"Average since installation",palette.mint),
+    tile("Hacking XP / hour",seconds>=5 && xpGain>=0 ? fmt.format(xpGain*3600/seconds) : "Sampling…","All sources · recent pace",palette.blue),
+    tile("Free network RAM",gb(d.ram-d.used),Math.round(d.used/Math.max(1,d.ram)*100)+"% allocated",palette.gold),
+    tile("Running scripts",String(d.processes.length),fmt.format(sum(d.processes,p=>p.threads))+" total threads",palette.mint));
+}
+function trends(d, history) {
+  const first=history[0];
+  return box({display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(360px,100%),1fr))",gap:12},
+    card("Money on hand",digits(cash(d.player.money)),trendChart(history,"cash",cash,palette.mint,"Balance")),
+    card("Hacking experience",digits("+"+xp(Math.max(0,d.player.exp.hacking-first.xp)),palette.blue),
+      small("Gained during the displayed window"),trendChart(history,"xp",xp,palette.blue,"Total hacking experience")),
+    card("Allocated network memory",digits(gb(d.used),palette.gold),trendChart(history,"ram",gb,palette.gold,"Used RAM")),
+    card("Hacking workload",digits(fmt.format(sum(d.workers,w=>w.threads))+" threads"),trendChart(history,"workers",n=>fmt.format(n)+" threads",palette.mint,"Target worker threads")));
+}
 function Dashboard({feed,goal}) {
+  const root = React.useRef(null);
+  React.useLayoutEffect(() => {
+    // Tail logs normally align to the bottom. Scope layout changes to this tail.
+    const viewport = root.current?.closest('[tabindex="-1"]');
+    if (!viewport) return;
+    const wrapper = viewport.firstElementChild;
+    const direction = viewport.style.flexDirection;
+    const background = viewport.style.backgroundColor;
+    const flex = wrapper.style.flex;
+    viewport.style.flexDirection = "column";
+    viewport.style.backgroundColor = "#0e1823";
+    wrapper.style.flex = "1 0 auto";
+    return () => {
+      viewport.style.flexDirection = direction;
+      viewport.style.backgroundColor = background;
+      wrapper.style.flex = flex;
+    };
+  }, []);
   const [tab,setTab]=React.useState("Overview");
   const [selected,select]=React.useState("home");
   const [frame,setFrame]=React.useState(feed.latest);
   React.useEffect(()=>{feed.update=setFrame;setFrame(feed.latest);return ()=>{feed.update=null;};},[feed]);
   const {data,history}=frame;
-  return box({boxSizing:"border-box",width:"100%",minWidth:0,whiteSpace:"normal",background:"#0e1823",color:palette.ink,
-    font:"15px/1.4 'Segoe UI', sans-serif",padding:"18px 20px 22px",textAlign:"left"},
+  return h("div",{ref:root,className:"kazah-operations-desk",style:{flex:"1 0 auto",boxSizing:"border-box",width:"100%",minWidth:0,whiteSpace:"normal",background:"#0e1823",color:palette.ink,
+    font:"15px/1.4 'Segoe UI', sans-serif",padding:"18px 20px 22px",textAlign:"left"}},
     box({display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:10,flexWrap:"wrap"},h("h2",{style:{margin:0,fontSize:28,letterSpacing:"-.035em"}},"Operations desk"),
       small("Kazah  /  "+data.player.city+"  ·  "+new Date(data.time).toLocaleTimeString("en-GB"))),
-    box({display:"flex",gap:6,margin:"13px 0 15px"},...["Overview","Network","Details"].map(name=>h("button",{key:name,onClick:()=>setTab(name),"aria-pressed":name===tab,
+    box({display:"flex",gap:6,margin:"13px 0 15px"},...["Overview","Trends","Network","Details"].map(name=>h("button",{key:name,onClick:()=>setTab(name),"aria-pressed":name===tab,
       style:{cursor:"pointer",border:"1px solid "+palette.line,borderRadius:6,padding:"7px 14px",font:"inherit",fontWeight:600,
         color:tab===name?"#10202a":palette.ink,background:tab===name?palette.mint:palette.panel}},name))),
-    tab==="Overview"?overview(data,history,goal):tab==="Network"?networkView(data,selected,select):details(data,history));
+    indicators(data,history),
+    tab==="Trends"?trends(data,history):tab==="Overview"?overview(data,history,goal):tab==="Network"?networkView(data,selected,select):details(data,history));
 }
 
 /** Usage: run monitor.js [refresh-ms] ["goal to display"] */
@@ -169,7 +211,7 @@ export async function main(ns) {
   ns.ui.setTailTitle("Kazah  /  Operations desk");
   while (true) {
     const data=snapshot(ns);
-    history.push({time:data.time,cash:data.player.money});
+    history.push({time:data.time,cash:data.player.money,xp:data.player.exp.hacking,ram:data.used,workers:sum(data.workers,w=>w.threads)});
     while(history.length>1 && history[0].time<data.time-600000) history.shift();
     const first=!feed.latest;
     feed.latest={data,history:[...history]};

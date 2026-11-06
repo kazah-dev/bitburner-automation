@@ -53,6 +53,10 @@ Choose one command. The first argument is the sample interval in milliseconds (d
 
 **Network** lets you select a server, follow its route from home and inspect its memory, access and activity. The memory ranking shows the five busiest hosts by allocated GB. Network capacity includes rooted servers with RAM and home. Free memory can be available between operations even when the controller is healthy.
 
+**Trends** charts balance, total hacking experience, allocated RAM and target worker threads. All four use the same rolling ten-minute sample window and separate vertical scales. The summary strip shows average script income since installing augmentations, observed hacking XP per hour, free network RAM and process/thread counts. The XP rate uses up to one minute of player experience samples, includes all sources, and warms up for five seconds.
+
+The dashboard aligns its own tail container to the top, including after resizing. Its component restores the container layout when unmounted.
+
 **Details** separates net cash change over the last minute from active-script income and average script income since the last augmentation reset. Hacknet income assumes money-producing nodes. Operation durations are estimates at the current skill and security levels. Open contracts list the host and filename for each discovered puzzle.
 
 The monitor uses the game's React log output and tail controls. Switching views only changes the display. It runs alongside the controller and contract worker without Singularity access.
