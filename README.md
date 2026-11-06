@@ -10,18 +10,23 @@ Copy the JavaScript files into the in-game editor on `home`, preserving their fi
 home
 mem cycle.js
 mem task.js
-run cycle.js sigma-cosmetics
+mem share.js
+run cycle.js auto
 ```
 
-The chosen target must already have root access, money and a required hacking level within your reach. Check each script's RAM requirement with `mem` and leave sufficient free RAM on home. The controller can take multiple preparation rounds before producing money.
+Save `cycle.js`, `task.js` and `share.js` on home. Check their RAM requirements with `mem`. The controller discovers the network, uses available port-opening programs and chooses an accessible money target. It can take multiple preparation rounds before producing money.
 
-During preparation, the controller estimates how many worker threads the target needs to recover its money or reach minimum security. It allocates up to that number across available hosts, then reads the actual result before scheduling another phase. Capacity left over can support other work, including faction reputation sharing.
+Target selection estimates revenue across a full hack, grow and weaken cycle, including preparation, success chance and available worker capacity. It compares several hack fractions and requires a meaningful improvement before switching targets. These are planning estimates, not guaranteed returns or a global optimum.
+
+Growth and weakening allocations account for host CPU cores. Unused capacity runs faction-sharing workers when the player belongs to a faction. The controller reclaims its sharing workers before each operation, preserves unrelated processes and keeps 16 GB free on home by default. Newly acquired port openers are detected without restarting.
+
+To pin a target or disable automatic sharing, use `run cycle.js sigma-cosmetics 16 off`. See [the operating guide](OPERATIONS.md#coordinated-mode) for ownership, migration and model limitations.
 
 ## Components
 
 | Component | Responsibility |
 | --- | --- |
-| [cycle.js](cycle.js) | Coordinate preparation and capped hacking phases across available servers |
+| [cycle.js](cycle.js) | Select targets, size operations and reclaim spare RAM across available servers |
 | [task.js](task.js) | Execute a single operation with the threads assigned by the controller |
 | [inspect.js](inspect.js) | Inventory contracts, faction routes, access requirements and candidate targets |
 | [contracts.js](contracts.js) | Find and solve supported coding contracts across the network |
@@ -56,7 +61,7 @@ On `home`, run `mem contracts.js` to check the RAM requirement, then `run contra
 
 Successful submissions print the host, filename and reward in the terminal. Unsupported types and unexpected input stay available for manual review. If the game rejects an answer, the worker records the contract in `contracts-rejected.txt` on home and skips it on subsequent scans and restarts.
 
-The summary strip tracks script income, recent hacking XP per hour, available memory and running processes. Open **Trends** to compare balance, experience, RAM use and target worker threads over the same ten-minute window. Hacking XP includes every source. The hourly rate extrapolates the last minute of samples and can jump when an operation completes.
+The summary strip tracks script income, recent hacking XP per hour, available memory and running processes. Open **Trends** to compare balance, experience, RAM use and target worker threads over the same ten-minute window. **Details** shows the target-selection policy and leading candidate estimates separately from measured income. Hacking XP includes every source. The hourly rate extrapolates the last minute of samples and can jump when an operation completes.
 
 ## Operating principles
 
@@ -67,5 +72,7 @@ The scripts operate within Bitburner's simulated environment. They do not automa
 ## Development
 
 Changes are published with their purpose, usage and validation. Commit history records the implementation's evolution; live levels, balances and network counts stay in the game and its logs.
+
+Run `node cycle.test.mjs` and `node monitor.test.mjs` outside the game. The deterministic suites cover preparation-aware ranking, switch hysteresis, RAM reserves, worker ownership, restart draining, new opener detection, failed copies or launches, and missing or stale dashboard telemetry. They do not replace in-game performance measurements.
 
 Compatibility, RAM costs and available APIs depend on the game version and progression state. Consult the in-game documentation when adapting the tools.

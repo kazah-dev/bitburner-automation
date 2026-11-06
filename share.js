@@ -3,6 +3,9 @@
  * @param {NS} ns */
 export async function main(ns) {
   ns.disableLog("ALL");
-  while (true) await ns.share();
+  const managed = ns.args[0] === "cycle-fill";
+  const owner = Number(ns.args[1]);
+  if (managed && (!Number.isInteger(owner) || owner <= 0)) throw new Error("Invalid controller PID.");
+  while (!managed || ns.isRunning(owner)) await ns.share();
 }
 

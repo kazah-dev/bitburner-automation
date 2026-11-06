@@ -2,37 +2,54 @@
 
 ## Coordinated mode
 
-Save `cycle.js` and `task.js` on home. Establish root access to the target first, then use:
+Save `cycle.js`, `task.js` and `share.js` on home, then run:
 
 ```text
 home
 mem cycle.js
 mem task.js
-run cycle.js sigma-cosmetics
-tail cycle.js sigma-cosmetics
+mem share.js
+run cycle.js auto
+tail cycle.js auto
 ```
 
-The optional first argument selects the target; sigma-cosmetics is the default. This default is an example, not an automatically optimized choice.
+Arguments are `[auto|hostname] [home-reserve-GB] [share|off]`. Defaults are `auto 16 share`. Reserve must be at least 8 GB. A hostname pins the target while still adapting the hack fraction and allocating workers. It must be reachable at the current skill level and rootable with the available programs. For example, `run cycle.js sigma-cosmetics 16 off` pins sigma-cosmetics without automatic sharing.
 
-The controller validates the target and rejects another running copy of itself before taking over. On its first network pass it stops processes named `inicio.js` on accessible hosts, including home. It owns processes named `task.js`; reserve that filename for this controller. Other process names are preserved. Darkweb is excluded as a worker host. On home, the controller keeps 8 GB free in addition to RAM used by existing processes; the remainder can run tasks. This reserve leaves room for inspection and other helpers, but is not a guarantee against unrelated processes starting later.
+### Target selection
 
-Each phase waits for existing task.js processes, inspects the target and selects one operation:
+The selector evaluates rooted money servers within the current hacking level. It normalizes live API measurements to minimum security and compares hack caps of 5%, 10%, 20%, 35% and 50%. Each estimate includes hack success chance, money restoration, security recovery and the number of sequential waves that fit in usable network RAM.
 
-1. Weaken when security is above minimum + 0.10.
+Preparation is charged against a 30-minute planning horizon: `score = steady-cycle income × 1800 / (1800 + preparation seconds)`. The controller reevaluates between operations. It keeps the current target until at least one hack has completed and two minutes have passed since selection; switching then requires a score more than 25% higher. This avoids abandoning preparation for small ranking changes. A target that becomes ineligible can be replaced immediately.
+
+This is an approximate sequential model. It uses one-core capacity estimates for ranking, minimum-security operation times and an approximation for distributed growth; skill changes, security changes during workers' completion, failed hacks and additive growth can change the outcome. Servers at security 100 are excluded from automatic ranking until prepared; pinned mode can weaken them. A single hack thread can exceed a requested percentage at extreme multipliers. The score is not a measurement or a claim of optimality. Compare complete cycles before drawing performance conclusions.
+
+The normalization follows the upstream [hacking formulas](https://github.com/bitburner-official/bitburner-src/blob/stable/src/Hacking.ts) and [growth formulas](https://github.com/bitburner-official/bitburner-src/blob/stable/src/Server/formulas/grow.ts). No Formulas.exe or Singularity access is required. Future game changes may require recalibration.
+
+### Work allocation and sharing
+
+Each phase drains surviving `task.js` workers, reclaims its own sharing workers and reads actual target state:
+
+1. Weaken when security exceeds minimum by more than 0.05.
 2. Grow when money is below 99% of maximum.
-3. Otherwise hack with a thread budget calculated to take roughly 20% of the available money.
+3. Otherwise hack up to the selected fraction, limited by available RAM.
 
-Grow and weaken phases use available remote RAM. Hack phases use the calculated cap. At very low per-thread returns, or when one thread exceeds the desired fraction, the cap is approximate. Hacking chance and changing skill affect realized income.
+Higher-core machines receive growth and weakening work first. The remaining work budget is reduced by each host's core-adjusted effect, and actual results are inspected before another phase. Growth from zero uses a conservative multiplicative estimate and may need several rounds. Copy and launch failures are logged; only successfully launched threads consume the budget.
 
-The controller discovers the network every phase and attempts rooting with programs present on home at startup: BruteSSH, FTPCrack, relaySMTP, HTTPWorm and SQLInject. Restart it after buying another opener. Newly accessible hosts join later phases. File copies and process launches are checked and failures are logged.
+Spare capacity runs `share.js cycle-fill <controller-pid>` when the player belongs to a faction. These workers support faction work; the controller does not start or choose that work. They are stopped before the next operation and on controller exit. The helper also checks its owner between share calls, so orphaned workers stop after the current call. Manual, untagged `share.js` processes are preserved and remain reserved. Sharing returns diminish with capacity, and short phases may interrupt a share call.
 
-### Stopping, switching and updating
+The home reserve is additional to existing process RAM. The controller rereads RAM before every launch, but it cannot prevent unrelated scripts from starting afterwards. Small unusable fragments, the reserve and short transitions remain free; 100% utilization is not a goal by itself.
 
-Stop cycle.js through **Active Scripts** or with `kill cycle.js sigma-cosmetics` using the actual target argument. Already launched tasks finish independently. Wait for them before editing task.js or switching modes. Restarting the controller with the same helper file waits for surviving tasks before its next phase.
+Network discovery and port-opener detection run every phase. New programs, rooted hosts and RAM upgrades become usable without restarting. Darkweb is excluded. No programs, RAM or servers are bought.
 
-Keep only one controller running. Do not launch task.js manually or run another program that manages those same process names. Deployment and execution are not transactional: partial launches can occur if resources or files change during a phase.
+### Ownership, stopping and updating
 
-This is sequential phase coordination, not a timed HWGW batch scheduler. It does not automatically select targets or buy RAM, programs or servers. A large target may require a long preparation period; compare complete cycles before assuming a throughput improvement.
+Only one controller may run. It owns all `task.js` processes and stops legacy `inicio.js` workers on its first pass. Reserve those names for this system. Only sharing workers with the `cycle-fill` tag are reclaimed. Contracts, the dashboard and unrelated scripts are preserved.
+
+Stop with `kill cycle.js auto` using the actual launch arguments, or use **Active Scripts**. Existing hacking tasks finish independently. A replacement controller waits for them before scheduling new work. Wait for tasks to finish before modifying `task.js`. Update `cycle.js`, `share.js` and `monitor.js` together when migrating from the fixed-target version, then restart the controller and monitor. The contract worker does not need a restart.
+
+The controller writes `cycle-status.txt` on home with the current target, estimated candidates, selected fraction and a heartbeat. The monitor validates both PID and freshness; stale or invalid status falls back to observed workers. This file is generated runtime data and should not be committed.
+
+This remains a sequential phase scheduler, not a timed HWGW batch system. It does not automate factions, augmentation installation or resets.
 
 ## Inspection
 

@@ -19,7 +19,14 @@ function snapshot(ns) {
   const network = hosts.filter(host => host.name !== "darkweb");
   const processes = hosts.flatMap(host => host.processes);
   const controller = processes.find(p => p.filename === "cycle.js");
-  const name = controller ? String(controller.args[0] ?? "sigma-cosmetics") : null;
+  let policy = null;
+  try {
+    const saved = JSON.parse(ns.read("cycle-status.txt") || "null");
+    if (controller && saved?.controllerPid === controller.pid && Date.now() - saved.updatedAt < 15000) policy = saved;
+  } catch { /* An absent or partial status file must never stop the dashboard. */ }
+  const activeWorker = processes.find(p => p.filename === "task.js");
+  const requested = String(controller?.args[0] ?? "auto");
+  const name = controller ? policy?.target ?? activeWorker?.args[1] ?? (requested !== "auto" ? requested : null) : null;
   const target = hosts.find(host => host.name === name);
   const workers = processes.filter(p => p.filename === "task.js" && p.args[1] === name);
   const phase = workers[0]?.args[0] ?? (controller ? "waiting" : "idle");
@@ -30,7 +37,7 @@ function snapshot(ns) {
   const hacknet = sum(Array.from({length: nodes}, (_, i) => ns.hacknet.getNodeStats(i)), n => n.production);
   const times = target ? [ns.getHackTime(name), ns.getGrowTime(name), ns.getWeakenTime(name)] : [];
   return { time: Date.now(), hosts: network, home, target, phase, player, owned, nodes, hacknet, times,
-    income: ns.getTotalScriptIncome(), processes, workers, controller,
+    income: ns.getTotalScriptIncome(), processes, workers, controller, policy,
     rooted: network.filter(h => h.hasAdminRights).length,
     ram: sum(network, h => h.hasAdminRights ? h.maxRam : 0),
     used: sum(network, h => h.hasAdminRights ? h.ramUsed : 0),
@@ -79,7 +86,9 @@ function operation(d) {
       padding:"4px 10px", borderRadius:20, background: key === d.phase ? color : "#293747",
       color: key === d.phase ? "#10202a" : palette.muted, fontSize:12}}, key))),
     t ? small(t.name + " · " + cash(t.moneyAvailable) + " of " + cash(t.moneyMax) + " available") : small("No active target"),
-    t && bar(t.moneyAvailable, t.moneyMax, color));
+    t && bar(t.moneyAvailable, t.moneyMax, color),
+    d.policy && small((d.policy.mode === "auto" ? "Automatic target" : "Pinned target") +
+      " · " + Math.round((d.policy.hackFraction ?? 0) * 100) + "% hack cap · Spare RAM supports faction reputation"));
 }
 function roadmap(d, goal) {
   const {player} = d;
@@ -101,7 +110,7 @@ function overview(d, history, goal) {
       h("strong",null,d.scanner ? "Contract scanner online" : "Contract scanner offline"),
       small(d.contracts.length + " contract files on the network. Supported puzzles are attempted by contracts.js."),
       h("strong",null,fmt.format(d.shares)+" reputation-sharing threads"),
-      small("These threads support faction work while the network earns money."),
+      small("Automatic sharing gives RAM back before the next hacking phase. Manual sharing stays reserved."),
       h("strong",null,fmt.format(d.used)+" / "+fmt.format(d.ram)+" GB in use"),bar(d.used,d.ram,palette.blue),
       small(d.rooted+" of "+d.hosts.length+" servers under your control."))));
 }
@@ -133,6 +142,9 @@ function details(d, history) {
       t && small("Estimated H / G / W times: "+d.times.map(ms=>Math.ceil(ms/1000)+"s").join(" / "))),
     card("Access programs",h("strong",null,d.owned.length+" / 5 port openers"),small(d.owned.map(([f])=>f.replace(".exe","")).join(" · ")),
       small(next?"Next: "+next[0]+" · "+cash(next[1])+(p.money>=next[1]?" · Affordable":""):"All port openers acquired."))),
+    card("Target selection",small(d.policy?.reason ?? "Controller selection data not available"),
+      small("Estimates include recovery and preparation; they are not measured income."),
+      ...(d.policy?.candidates ?? []).map(c=>small(c.name + " · " + rate(c.score) + " estimated · " + Math.ceil(c.prepSeconds) + "s preparation"))),
     card("Open contracts",...(d.contracts.length?d.contracts.map(c=>small(c.host+" / "+c.file)):[small("No contract files found on the latest scan.")])));
 }
 const gb = n => fmt.format(n) + " GB";
