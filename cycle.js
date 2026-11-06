@@ -1,5 +1,5 @@
-/** Adaptive sequential hacking with reclaimable faction-sharing workers.
- * Usage: run cycle.js [auto|hostname] [home-reserve-GB=16] [share|off]
+/** Adaptive concurrent hacking with reclaimable faction-sharing workers.
+ * Usage: run cycle.js [auto|hostname] [home-reserve-GB=16] [share|off] [max-targets=4]
  * Owns task.js and share.js processes tagged cycle-fill. No purchases or resets.
  */
 const TAG = "cycle-fill";
@@ -80,106 +80,108 @@ function model(ns, s, capacity) {
 /** @param {NS} ns */
 export async function main(ns) {
   ns.disableLog("ALL");
-  const mode = String(ns.args[0] ?? "auto");
-  const reserve = Number(ns.args[1] ?? 16);
-  const fillerMode = String(ns.args[2] ?? "share");
-  if (!Number.isFinite(reserve) || reserve < 8) throw new Error("Reserve must be at least 8 GB.");
-  if (!["share", "off"].includes(fillerMode)) throw new Error("Filler mode must be share or off.");
-  if (ns.getHostname() !== "home") throw new Error("Run cycle.js on home.");
-  if (ns.ps("home").filter(p => p.filename === ns.getScriptName()).length > 1) {
-    throw new Error("Only one cycle.js controller may run.");
-  }
-  const taskRam = ns.getScriptRam("task.js", "home"), shareRam = ns.getScriptRam("share.js", "home");
-  if (!(taskRam > 0)) throw new Error("Missing task.js on home.");
-  if (fillerMode === "share" && !(shareRam > 0)) throw new Error("Missing share.js on home (or use off).");
-  if (mode !== "auto" && !ns.serverExists(mode)) throw new Error("Unknown target: " + mode);
-  const openerDefs = [
-    ["BruteSSH.exe", h => ns.brutessh(h)], ["FTPCrack.exe", h => ns.ftpcrack(h)],
-    ["relaySMTP.exe", h => ns.relaysmtp(h)], ["HTTPWorm.exe", h => ns.httpworm(h)],
-    ["SQLInject.exe", h => ns.sqlinject(h)],
-  ];
-  let target = null, selectedAt = 0, completedHack = false, initialized = false;
-  let ownedShares = [], lastStatus = 0, state = {mode, phase:"waiting", target:null};
-  const release = () => { for (const pid of ownedShares) ns.kill(pid); ownedShares = []; };
+  const mode=String(ns.args[0]??"auto"), reserve=Number(ns.args[1]??32);
+  const fillerMode=String(ns.args[2]??"share");
+  const lanes=mode==="auto"?Number(ns.args[3]??4):1;
+  if(!Number.isFinite(reserve)||reserve<8)throw Error("Reserve must be at least 8 GB.");
+  if(!["share","off"].includes(fillerMode))throw Error("Expected share or off.");
+  if(!Number.isInteger(lanes)||lanes<1||lanes>8)throw Error("Use 1 to 8 targets.");
+  if(ns.getHostname()!=="home")throw Error("Run cycle.js on home.");
+  if(ns.ps('home').filter(p=>p.filename===ns.getScriptName()).length>1)throw Error("Only one controller may run.");
+  if(mode!=="auto"&&!ns.serverExists(mode))throw Error("Unknown target: "+mode);
+  const taskRam=ns.getScriptRam('task.js','home'),shareRam=ns.getScriptRam('share.js','home');
+  if(!(taskRam>0)||fillerMode==='share'&&!(shareRam>0))throw Error("Missing workers.");
+  const openers=[['BruteSSH.exe',h=>ns.brutessh(h)],['FTPCrack.exe',h=>ns.ftpcrack(h)],
+    ['relaySMTP.exe',h=>ns.relaysmtp(h)],['HTTPWorm.exe',h=>ns.httpworm(h)],['SQLInject.exe',h=>ns.sqlinject(h)]];
+  let shares=[],lastWrite=0,lastNetwork='',nextRefresh=0,ranked=[],capacity=0;
+  const slots=Array.from({length:lanes},()=>({target:null,pids:[],phase:'waiting',selectedAt:0,completedHack:false,threads:0}));
+  const release=()=>{for(const pid of shares)ns.kill(pid);shares=[];};
   ns.atExit(release);
-  const report = async (force = false) => {
-    if (!force && Date.now() - lastStatus < 5000) return;
-    lastStatus = Date.now();
-    await ns.write(STATUS, JSON.stringify({...state, controllerPid:ns.pid, updatedAt:lastStatus}), "w");
+  const report=async(force=false)=>{
+    if(!force&&Date.now()-lastWrite<2000)return;
+    lastWrite=Date.now(); const active=slots.filter(s=>s.target);
+    const first=active[0]??{};
+    await ns.write(STATUS,JSON.stringify({mode,target:first.target??null,phase:first.phase??'waiting',
+      reason:'Independent target cycles; 25% switch threshold',controllerPid:ns.pid,updatedAt:lastWrite,
+      reserve,capacityThreads:capacity,hackFraction:first.choice?.fraction??0,
+      estimatedIncome:active.reduce((n,s)=>n+(s.choice?.score??0),0),
+      workerThreads:active.reduce((n,s)=>n+s.threads,0),candidates:ranked.slice(0,5),
+      targets:active.map(s=>({name:s.target,phase:s.phase,threads:s.threads,estimate:s.choice?.score??0,fraction:s.choice?.fraction??0}))}),'w');
   };
-  ns.tprint("Adaptive controller online (" + mode + "). See log and Operations desk.");
-  while (true) {
-    const hosts = discover(ns);
-    const openers = openerDefs.filter(([file]) => ns.fileExists(file, "home"));
-    for (const host of hosts) {
-      const s = ns.getServer(host);
-      if (!s.hasAdminRights && s.numOpenPortsRequired <= openers.length) {
-        try { for (const [,open] of openers) open(host); ns.nuke(host); }
-        catch (error) { ns.print("Access failed on " + host + ": " + String(error)); }
+  // Stop only obsolete workers owned by this system; drain all existing tasks.
+  const initial=discover(ns);
+  for(const h of initial)for(const p of ns.ps(h))if(p.filename==='inicio.js'||p.filename==='share.js'&&p.args[0]===TAG)ns.kill(p.pid);
+  const pending=initial.flatMap(h=>ns.ps(h).filter(p=>p.filename==='task.js'));
+  // Keep reputation support alive while an update waits for old hacking work.
+  if(pending.length&&fillerMode==='share'&&ns.getPlayer().factions.length)for(const host of initial){
+    const s=ns.getServer(host);if(!s.hasAdminRights)continue;
+    const threads=freeThreads(s,shareRam,reserve);if(!threads)continue;
+    if(host!=='home'&&!await ns.scp('share.js',host,'home'))continue;
+    const pid=ns.exec('share.js',host,threads,TAG,ns.pid);if(pid)shares.push(pid);
+  }
+  while(pending.some(p=>ns.isRunning(p.pid))){await report();await ns.sleep(250);}
+  ns.tprint('Controller online: up to '+lanes+' independent targets. Home reserve '+reserve+' GB.');
+  while(true){
+    let changed=false;
+    for(const s of slots)if(s.pids.length&&!s.pids.some(p=>ns.isRunning(p))){
+      if(s.phase==='hack')s.completedHack=true;s.pids=[];s.threads=0;changed=true;
+    }
+    const hosts=discover(ns),network=hosts.join('|');
+    const idle=slots.some(s=>!s.pids.length);
+    if(changed||network!==lastNetwork||idle&&Date.now()>=nextRefresh){
+      lastNetwork=network;nextRefresh=Date.now()+15000;release();
+      const availableOpeners=openers.filter(([file])=>ns.fileExists(file,'home'));
+      for(const h of hosts){const s=ns.getServer(h);if(!s.hasAdminRights&&s.numOpenPortsRequired<=availableOpeners.length){
+        try{for(const [,open]of availableOpeners)open(h);ns.nuke(h);}catch(e){ns.print('Access failed: '+h+' '+e);}
+      }}
+      const pool=hosts.map(h=>ns.getServer(h)).filter(s=>s.hasAdminRights&&s.maxRam>=taskRam)
+        .sort((a,b)=>b.cpuCores-a.cpuCores||b.maxRam-a.maxRam);
+      const activeThreads=pool.reduce((n,s)=>n+ns.ps(s.hostname)
+        .filter(p=>p.filename==='task.js').reduce((count,p)=>count+p.threads,0),0);
+      capacity=pool.reduce((n,s)=>n+freeThreads(s,taskRam,reserve),0)+activeThreads;
+      // Keep at least 25% of usable capacity available to faction sharing.
+      const laneCap=Math.max(1,Math.floor(capacity*(fillerMode==='share'?.75:1)/lanes));
+      const candidates=hosts.map(h=>ns.getServer(h)).filter(s=>s.hasAdminRights&&s.moneyMax>0&&s.serverGrowth>0&&s.requiredHackingSkill<=ns.getHackingLevel());
+      ranked=candidates.map(s=>model(ns,s,laneCap)).filter(Boolean).sort((a,b)=>b.score-a.score);
+      for(const slot of slots){
+        if(slot.pids.length)continue;
+        const excluded=new Set(slots.filter(s=>s!==slot).map(s=>s.target).filter(Boolean));
+        const choices=ranked.filter(c=>!excluded.has(c.name));
+        let choice=mode==='auto'?chooseTarget(choices,slot.target,slot.completedHack&&Date.now()-slot.selectedAt>=120000):choices.find(c=>c.name===mode);
+        if(!choice&&mode!=='auto'&&candidates.some(s=>s.hostname===mode))choice={name:mode,fraction:.2};
+        if(!choice){slot.target=null;slot.phase='waiting';continue;}
+        if(choice.name!==slot.target){slot.selectedAt=Date.now();slot.completedHack=false;ns.print('SELECT '+choice.name+' estimate $'+Math.round(choice.score??0)+'/s');}
+        slot.target=choice.name;slot.choice=choice;
+        const target=ns.getServer(slot.target);
+        let op='hack',remaining=Math.max(1,Math.floor(choice.fraction/Math.max(1e-12,ns.hackAnalyze(slot.target))));
+        if(target.hackDifficulty>target.minDifficulty+.05){op='weaken';remaining=target.hackDifficulty-target.minDifficulty;}
+        else if(target.moneyAvailable<target.moneyMax*.99){op='grow';remaining=Math.log(target.moneyMax/Math.max(1,target.moneyAvailable));}
+        slot.phase=op;let assigned=0;
+        for(const machine of pool){
+          if(remaining<=1e-9||assigned>=laneCap)break;
+          const current=ns.getServer(machine.hostname),available=Math.min(laneCap-assigned,freeThreads(current,taskRam,reserve));
+          if(!available)continue;
+          let effect=1;
+          if(op==='weaken')effect=ns.weakenAnalyze(1,current.cpuCores);
+          if(op==='grow')effect=1/ns.growthAnalyze(slot.target,Math.E,current.cpuCores);
+          const threads=Math.min(available,effect>0?Math.ceil(remaining/effect):0);
+          if(!(threads>0))continue;
+          if(machine.hostname!=='home'&&!await ns.scp('task.js',machine.hostname,'home')){ns.print('Copy failed: '+machine.hostname);continue;}
+          const pid=ns.exec('task.js',machine.hostname,threads,op,slot.target);
+          if(!pid){ns.print('Launch failed: '+machine.hostname);continue;}
+          slot.pids.push(pid);assigned+=threads;remaining-=threads*effect;
+        }
+        slot.threads=assigned;
+        ns.print(op+' '+slot.target+' threads='+assigned+' money='+Math.round(target.moneyAvailable)+'/'+target.moneyMax);
       }
-      if (!initialized) for (const p of ns.ps(host)) {
-        if (p.filename === "inicio.js" || (p.filename === "share.js" && p.args[0] === TAG)) ns.kill(p.pid);
+      if(fillerMode==='share'&&ns.getPlayer().factions.length)for(const machine of pool){
+        const threads=freeThreads(ns.getServer(machine.hostname),shareRam,reserve);
+        if(!threads)continue;
+        if(machine.hostname!=='home'&&!await ns.scp('share.js',machine.hostname,'home'))continue;
+        const pid=ns.exec('share.js',machine.hostname,threads,TAG,ns.pid);if(pid)shares.push(pid);
       }
+      await report(true);
     }
-    initialized = true;
-    release();
-    // Adopt outstanding task.js work rather than killing useful progress on restart.
-    const pending = hosts.flatMap(h => ns.ps(h).filter(p => p.filename === "task.js"));
-    state = {...state, phase:"waiting"};
-    while (pending.some(p => ns.isRunning(p.pid))) { await report(); await ns.sleep(200); }
-    const pool = hosts.map(h => ns.getServer(h)).filter(s => s.hasAdminRights && s.maxRam >= taskRam)
-      .sort((a,b) => b.cpuCores - a.cpuCores || b.maxRam - a.maxRam);
-    const capacity = pool.reduce((n,s) => n + freeThreads(s, taskRam, reserve), 0);
-    if (!capacity) { state = {...state,phase:"waiting",reason:"Waiting for worker RAM"}; await report(true); await ns.sleep(5000); continue; }
-    const candidates = hosts.map(h => ns.getServer(h)).filter(s => s.hasAdminRights && s.moneyMax > 0 &&
-      s.serverGrowth > 0 && s.requiredHackingSkill <= ns.getHackingLevel());
-    const ranked = candidates.map(s => model(ns,s,capacity)).filter(Boolean).sort((a,b) => b.score - a.score);
-    const previous = target;
-    let choice = mode === "auto" ? chooseTarget(ranked,target,completedHack && Date.now()-selectedAt >= 120000) : ranked.find(x => x.name === mode);
-    if (!choice && mode !== "auto" && candidates.some(s => s.hostname === mode)) choice = {name:mode,fraction:0.20};
-    if (!choice) { state = {...state,target:null,phase:"waiting",reason:"No eligible money target"}; await report(true); await ns.sleep(5000); continue; }
-    target = choice.name;
-    if (target !== previous) {
-      selectedAt = Date.now(); completedHack = false;
-      ns.print("SELECT " + target + " estimated=$" + Math.round(choice.score ?? 0) + "/s including preparation");
-    }
-    const s = ns.getServer(target);
-    let operation = "hack", remaining = Math.max(1, Math.floor(choice.fraction / Math.max(1e-12,ns.hackAnalyze(target))));
-    if (s.hackDifficulty > s.minDifficulty + 0.05) { operation = "weaken"; remaining = s.hackDifficulty-s.minDifficulty; }
-    else if (s.moneyAvailable < s.moneyMax * 0.99) { operation = "grow"; remaining = Math.log(s.moneyMax/Math.max(1,s.moneyAvailable)); }
-    const pids = []; let allocated = 0;
-    for (const machine of pool) {
-      if (remaining <= 1e-9) break;
-      const host = machine.hostname, current = ns.getServer(host);
-      const available = freeThreads(current,taskRam,reserve);
-      if (!available) continue;
-      let effect = 1;
-      if (operation === "weaken") effect = ns.weakenAnalyze(1,current.cpuCores);
-      if (operation === "grow") effect = 1/ns.growthAnalyze(target,Math.E,current.cpuCores);
-      const required = effect > 0 ? Math.ceil(remaining/effect) : 0;
-      const threads = Math.min(available,required);
-      if (!(threads > 0)) continue;
-      if (host !== "home" && !await ns.scp("task.js",host,"home")) { ns.print("Copy failed: "+host); continue; }
-      const pid = ns.exec("task.js",host,threads,operation,target);
-      if (!pid) { ns.print("Launch failed: "+host); continue; }
-      pids.push(pid); allocated += threads; remaining -= threads*effect;
-    }
-    state = {mode,target,phase:operation,reason:mode === "auto" ? "Cycle cost + preparation; 25% switch threshold" : "Pinned target",
-      estimatedIncome:choice.score ?? null, hackFraction:choice.fraction, capacityThreads:capacity,
-      workerThreads:allocated, candidates:ranked.slice(0,3), reserve};
-    ns.print(operation+" target="+target+" threads="+allocated+" money="+Math.round(s.moneyAvailable)+"/"+s.moneyMax+" security="+s.hackDifficulty.toFixed(3));
-    // Sharing is interruptible: only tagged filler is reclaimed before the next phase.
-    if (pids.length && fillerMode === "share" && ns.getPlayer().factions.length) for (const machine of pool) {
-      const host=machine.hostname, threads=freeThreads(ns.getServer(host),shareRam,reserve);
-      if (!threads) continue;
-      if (host !== "home" && !await ns.scp("share.js",host,"home")) continue;
-      const pid=ns.exec("share.js",host,threads,TAG,ns.pid);
-      if (pid) ownedShares.push(pid);
-    }
-    await report(true);
-    if (!pids.length) { await ns.sleep(5000); continue; }
-    while (pids.some(pid => ns.isRunning(pid))) { await report(); await ns.sleep(200); }
-    if (operation === "hack") completedHack = true;
-    await ns.sleep(50);
+    await report();await ns.sleep(1000);
   }
 }

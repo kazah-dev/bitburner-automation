@@ -88,7 +88,10 @@ function operation(d) {
     t ? small(t.name + " · " + cash(t.moneyAvailable) + " of " + cash(t.moneyMax) + " available") : small("No active target"),
     t && bar(t.moneyAvailable, t.moneyMax, color),
     d.policy && small((d.policy.mode === "auto" ? "Automatic target" : "Pinned target") +
-      " · " + Math.round((d.policy.hackFraction ?? 0) * 100) + "% hack cap · Spare RAM supports faction reputation"));
+      " · " + Math.round((d.policy.hackFraction ?? 0) * 100) + "% hack cap · Spare RAM supports faction reputation"),
+    d.policy?.targets?.length > 1 && box({display:"grid",gap:6},label("Parallel targets"),
+      ...d.policy.targets.map(lane=>box({display:"flex",justifyContent:"space-between",gap:10},
+        h("strong",null,lane.name),small(lane.phase+" · "+fmt.format(lane.threads)+" threads")))));
 }
 function roadmap(d, goal) {
   const {player} = d;

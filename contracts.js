@@ -2,7 +2,19 @@ const solvers = new Map([
   ["Algorithmic Stock Trader I", stockProfit],
   ["Encryption I: Caesar Cipher", caesarCipher],
   ["Find Largest Prime Factor", largestPrimeFactor],
+  ["Subarray with Maximum Sum", maximumSubarray],
 ]);
+
+export function maximumSubarray(values) {
+  if (!Array.isArray(values) || !values.length || !values.every(Number.isSafeInteger)) return;
+  let current = values[0], best = current;
+  for (const value of values.slice(1)) {
+    current = Math.max(value, current + value);
+    if (!Number.isSafeInteger(current)) return;
+    best = Math.max(best, current);
+  }
+  return best;
+}
 
 function stockProfit(prices) {
   if (!Array.isArray(prices) || !prices.length || !prices.every(Number.isSafeInteger)) return;
@@ -43,6 +55,10 @@ export async function main(ns) {
     return;
   }
   ns.disableLog("ALL");
+  if (ns.ps("home").filter(p => p.filename === ns.getScriptName()).length > 1) {
+    ns.tprint("A contract scanner is already running.");
+    return;
+  }
   const rejectedFile = "contracts-rejected.txt";
   const rejected = new Set(ns.read(rejectedFile).split("\n").filter(Boolean));
   while (true) {
@@ -71,7 +87,7 @@ export async function main(ns) {
             ns.tprint(key + " | " + type + " | " + reward);
           } else {
             rejected.add(key);
-            ns.write(rejectedFile, key + "\n", "a");
+            await ns.write(rejectedFile, key + "\n", "a");
             pending++;
             ns.tprint(key + " | Answer rejected. Further attempts disabled.");
           }

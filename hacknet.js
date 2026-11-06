@@ -15,7 +15,8 @@ export async function main(ns) {
     let baseProduction = 1.5;
     if (nodes.length > 0) {
       const n = nodes[0];
-      baseProduction = n.production / (n.level * n.ram * Math.pow(1.035, n.ram - 1) * (n.cores + 5) / 6);
+      if ("hashCapacity" in n) throw new Error("Only money-producing Hacknet Nodes are supported.");
+      baseProduction = n.production / (n.level * Math.pow(1.035, n.ram - 1) * (n.cores + 5) / 6);
     }
     const choices = [{
       cost: ns.hacknet.getPurchaseNodeCost(),
@@ -26,7 +27,7 @@ export async function main(ns) {
       choices.push(
         {cost: ns.hacknet.getLevelUpgradeCost(i, 1), gain: n.production / n.level,
          buy: () => ns.hacknet.upgradeLevel(i, 1)},
-        {cost: ns.hacknet.getRamUpgradeCost(i, 1), gain: n.production * (2 * Math.pow(1.035, n.ram) - 1),
+        {cost: ns.hacknet.getRamUpgradeCost(i, 1), gain: n.production * (Math.pow(1.035, n.ram) - 1),
          buy: () => ns.hacknet.upgradeRam(i, 1)},
         {cost: ns.hacknet.getCoreUpgradeCost(i, 1), gain: n.production / (n.cores + 5),
          buy: () => ns.hacknet.upgradeCore(i, 1)}

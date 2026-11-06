@@ -19,12 +19,15 @@ assert.equal(chooseTarget([{name:'b',score:124},{name:'a',score:100}],'a',true).
 assert.equal(chooseTarget([{name:'b',score:126},{name:'a',score:100}],'a',false).name,'a');
 assert.equal(chooseTarget([{name:'b',score:126},{name:'a',score:100}],'a',true).name,'b');
 
-async function simulate({failCopy=false,failExec=false,noFaction=false}={}) {
+async function simulate({failCopy=false,failExec=false,noFaction=false,multi=false}={}) {
+  const realNow=Date.now; let now=1e6; Date.now=()=>now;
   let pid=20, ticks=0, hacks=0, drained=false, opener=false, exit;
   const targets = {fast:{hostname:'fast',hasAdminRights:true,maxRam:64,ramUsed:0,cpuCores:4,moneyMax:1e6,moneyAvailable:1e6,
     serverGrowth:100,requiredHackingSkill:1,hackDifficulty:1,minDifficulty:1,numOpenPortsRequired:0}};
   const hosts = {home:{hostname:'home',hasAdminRights:true,maxRam:128,ramUsed:0,cpuCores:1,moneyMax:0},
     fast:targets.fast,locked:{hostname:'locked',hasAdminRights:false,maxRam:32,ramUsed:0,cpuCores:1,moneyMax:0,numOpenPortsRequired:1}};
+  if(multi)for(const name of ['second','third','fourth']){targets[name]={...targets.fast,hostname:name,maxRam:512};hosts[name]=targets[name];}
+  let concurrent=false;
   const procs = new Map([
     [1,{pid:1,host:'home',filename:'cycle.js',threads:1,args:['auto'],ram:20}],
     [2,{pid:2,host:'home',filename:'contracts.js',threads:1,args:[],ram:22}],
@@ -34,8 +37,8 @@ async function simulate({failCopy=false,failExec=false,noFaction=false}={}) {
   ]);
   let copied=false, failed=false; const writes=[], events=[], messages=[];
   const ram=s=>({...s,ramUsed:[...procs.values()].filter(p=>p.host===s.hostname).reduce((n,p)=>n+p.ram,0)});
-  const ns={args:['auto',16,'share'],pid:1, disableLog(){},getHostname:()=> 'home',getScriptName:()=> 'cycle.js',
-    ps:h=>[...procs.values()].filter(p=>p.host===h),getServer:h=>ram(hosts[h]),scan:h=>h==='home'?['fast','locked']:['home'],
+  const ns={args:['auto',16,'share',multi?4:1],pid:1, disableLog(){},getHostname:()=> 'home',getScriptName:()=> 'cycle.js',
+    ps:h=>[...procs.values()].filter(p=>p.host===h),getServer:h=>ram(hosts[h]),scan:h=>h==='home'?Object.keys(hosts).filter(h=>h!=='home'):['home'],
     getScriptRam:f=>f==='task.js'?2:4,serverExists:h=>!!hosts[h],getHackingLevel:()=>100,getPlayer:()=>({factions:noFaction?[]:['CyberSec']}),
     fileExists:f=>opener&&f==='BruteSSH.exe',brutessh(){},nuke:h=>{hosts[h].hasAdminRights=true;events.push('root');},
     ftpcrack(){},relaysmtp(){},httpworm(){},sqlinject(){},
@@ -44,18 +47,20 @@ async function simulate({failCopy=false,failExec=false,noFaction=false}={}) {
     getHackTime:()=>10000,getGrowTime:()=>32000,getWeakenTime:()=>40000,
     isRunning:p=>procs.has(p),kill:p=>{assert(![2,3].includes(p),'Unrelated scripts must survive');events.push('kill:'+p);return procs.delete(p);},
     atExit:f=>{exit=f;},write:async(_f,s)=>writes.push(JSON.parse(s)),print:s=>messages.push(s),tprint(){},
-    scp:async()=>{if(failCopy&&!copied){copied=true;return false;}return true;},
+    scp:async(file)=>{if(file==='task.js'&&failCopy&&!copied){copied=true;return false;}return true;},
     exec(f,h,n,...args){
-      assert(drained,'Must drain existing tasks before launching work');
+      if(f==='task.js')assert(drained,'Must drain existing tasks before launching work');
       if(failExec&&!failed&&f==='task.js'){failed=true;return 0;}
       const cost=(f==='task.js'?2:4)*n;
       assert(ram(hosts[h]).ramUsed+cost <= hosts[h].maxRam-(h==='home'?16:0)+1e-8,'Reserve exceeded');
       if(f==='task.js') assert(![...procs.values()].some(p=>p.filename==='share.js'&&p.args[0]==='cycle-fill'),'Filler must be reclaimed first');
+      if(f==='task.js')assert(![...procs.values()].some(p=>p.filename==='task.js'&&p.args[1]===args[1]&&p.args[0]!==args[0]),'Never overlap phases on one target');
       const p=++pid; procs.set(p,{pid:p,host:h,filename:f,threads:n,args,ram:cost,end:f==='task.js'?ticks+3:Infinity});
+      if(new Set([...procs.values()].filter(p=>p.filename==='task.js').map(p=>p.args[1])).size>=4)concurrent=true;
       events.push(f); return p;
     },
     async sleep(){
-      ticks++; if(ticks>120)throw new Error('Controller stalled');
+      ticks++; now+=1000; if(ticks>300)throw new Error('Controller stalled');
       opener=true;
       for(const [p,proc] of [...procs])if(proc.end<=ticks){
         procs.delete(p); if(p===4){drained=true;continue;}
@@ -67,7 +72,7 @@ async function simulate({failCopy=false,failExec=false,noFaction=false}={}) {
       if(hacks>=4)throw new Error('SIMULATION_COMPLETE');
     },
   };
-  await assert.rejects(main(ns),/SIMULATION_COMPLETE/);
+  try { await assert.rejects(main(ns),/SIMULATION_COMPLETE/); } finally { Date.now=realNow; }
   exit();
   assert(procs.has(2)&&procs.has(3));
   assert(![...procs.values()].some(p=>p.filename==='share.js'&&p.args[0]==='cycle-fill'),'Exit must release owned filler');
@@ -76,6 +81,7 @@ async function simulate({failCopy=false,failExec=false,noFaction=false}={}) {
   assert(noFaction?!events.includes('share.js'):events.includes('share.js'));
   if(failCopy)assert(messages.some(s=>s.startsWith('Copy failed')));
   if(failExec)assert(messages.some(s=>s.startsWith('Launch failed')));
+  if(multi)assert(concurrent,'Four distinct targets must run simultaneously');
 }
-await simulate(); await simulate({failCopy:true,failExec:true}); await simulate({noFaction:true});
+await simulate(); await simulate({failCopy:true,failExec:true}); await simulate({noFaction:true}); await simulate({multi:true});
 console.log('PASS: ranking, preparation costs, hysteresis, RAM reserve, core-aware allocation, restart draining, sharing ownership, opener refresh and launch/copy recovery.');

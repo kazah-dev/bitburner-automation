@@ -14,11 +14,13 @@ mem share.js
 run cycle.js auto
 ```
 
-Save `cycle.js`, `task.js` and `share.js` on home. Check their RAM requirements with `mem`. The controller discovers the network, uses available port-opening programs and chooses an accessible money target. It can take multiple preparation rounds before producing money.
+For unattended service recovery, run `economy.js` instead. It starts missing contract, dashboard and controller services in that order, checks every 30 seconds and backs off for five minutes after each launch attempt. Existing instances and their arguments are preserved. Stop `economy.js` first when you intentionally want a service to remain stopped. It makes no purchases and does not reset the game.
+
+Save `cycle.js`, `task.js` and `share.js` on home. Check their RAM requirements with `mem`. The controller discovers the network, uses available port-opening programs and runs independent cycles on up to four accessible money targets. It can take multiple preparation rounds before producing money.
 
 Target selection estimates revenue across a full hack, grow and weaken cycle, including preparation, success chance and available worker capacity. It compares several hack fractions and requires a meaningful improvement before switching targets. These are planning estimates, not guaranteed returns or a global optimum.
 
-Growth and weakening allocations account for host CPU cores. Unused capacity runs faction-sharing workers when the player belongs to a faction. The controller reclaims its sharing workers before each operation, preserves unrelated processes and keeps 16 GB free on home by default. Newly acquired port openers are detected without restarting.
+Growth and weakening allocations account for host CPU cores. Each target has a bounded thread budget and never overlaps its own phases. With sharing enabled, at least 25% of usable worker capacity is kept out of hacking allocations; all spare capacity supports faction work. The controller preserves unrelated processes and keeps 32 GB free on home by default. New network capacity and port openers are detected without restarting.
 
 To pin a target or disable automatic sharing, use `run cycle.js sigma-cosmetics 16 off`. See [the operating guide](OPERATIONS.md#coordinated-mode) for ownership, migration and model limitations.
 
@@ -27,8 +29,10 @@ To pin a target or disable automatic sharing, use `run cycle.js sigma-cosmetics 
 | Component | Responsibility |
 | --- | --- |
 | [cycle.js](cycle.js) | Select targets, size operations and reclaim spare RAM across available servers |
+| [economy.js](economy.js) | Start missing core services and recover them with bounded retries |
 | [task.js](task.js) | Execute a single operation with the threads assigned by the controller |
 | [inspect.js](inspect.js) | Inventory contracts, faction routes, access requirements and candidate targets |
+| [audit.js](audit.js) | Export a read-only local snapshot of server processes, contracts and economic signals |
 | [contracts.js](contracts.js) | Find and solve supported coding contracts across the network |
 | [monitor.js](monitor.js) | Display a live operations dashboard inside the game |
 | [share.js](share.js) | Share spare RAM to improve faction reputation gain |
@@ -59,6 +63,7 @@ On `home`, run `mem contracts.js` to check the RAM requirement, then `run contra
 | Algorithmic Stock Trader I | Tracks the lowest earlier price and the best profit from one trade. Returns zero when buying would lose money. |
 | Encryption I: Caesar Cipher | Shifts each uppercase letter left by the supplied key and preserves spaces. |
 | Find Largest Prime Factor | Divides out each prime factor and compares the last divisor with the remaining factor. |
+| Subarray with Maximum Sum | Finds the best nonempty contiguous sum in one pass, including all-negative arrays. |
 
 Successful submissions print the host, filename and reward in the terminal. Unsupported types and unexpected input stay available for manual review. If the game rejects an answer, the worker records the contract in `contracts-rejected.txt` on home and skips it on subsequent scans and restarts.
 
@@ -76,7 +81,7 @@ The scripts operate within Bitburner's simulated environment. They do not automa
 
 Changes are published with their purpose, usage and validation. Commit history records the implementation's evolution; live levels, balances and network counts stay in the game and its logs.
 
-Run `node cycle.test.mjs` and `node monitor.test.mjs` outside the game. The deterministic suites cover preparation-aware ranking, switch hysteresis, RAM reserves, worker ownership, restart draining, new opener detection, failed copies or launches, and missing or stale dashboard telemetry. They do not replace in-game performance measurements.
+Run `node cycle.test.mjs`, `node monitor.test.mjs`, `node contracts.test.mjs`, `node hacknet.test.mjs` and `node fleet.test.mjs` outside the game. The suites cover preparation-aware ranking, concurrent targets, phase isolation, RAM reserves, worker ownership, restart draining, failed copies or launches, dashboard telemetry, contract quarantine and investment payback. Contract arithmetic is compared with brute-force reference results. They do not replace in-game performance measurements.
 
 Compatibility, RAM costs and available APIs depend on the game version and progression state. Consult the in-game documentation when adapting the tools.
 
