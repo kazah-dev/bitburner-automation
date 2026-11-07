@@ -1,5 +1,4 @@
 /** A read-only graphical dashboard for the Bitburner tail window. */
-const gates = [["CyberSec", "CSEC"], ["NiteSec", "avmnite-02h"], ["The Black Hand", "I.I.I.I"], ["BitRunners", "run4theh111z"]];
 const programs = [["BruteSSH.exe", 5e5], ["FTPCrack.exe", 1.5e6], ["relaySMTP.exe", 5e6], ["HTTPWorm.exe", 3e7], ["SQLInject.exe", 25e7]];
 const palette = { ink: "#eaf1f7", muted: "#afbece", mint: "#72e5bf", blue: "#87baff", gold: "#f5c878", panel: "#172330", line: "#354859" };
 const fmt = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 });
@@ -29,6 +28,7 @@ function snapshot(ns) {
   const name = controller ? policy?.target ?? activeWorker?.args[1] ?? (requested !== "auto" ? requested : null) : null;
   const target = hosts.find(host => host.name === name);
   const workers = processes.filter(p => p.filename === "task.js" && p.args[1] === name);
+  const farmingWorkers = processes.filter(p => p.filename === "task.js");
   const phase = workers[0]?.args[0] ?? (controller ? "waiting" : "idle");
   const player = ns.getPlayer();
   const home = hosts.find(host => host.name === "home");
@@ -37,7 +37,7 @@ function snapshot(ns) {
   const hacknet = sum(Array.from({length: nodes}, (_, i) => ns.hacknet.getNodeStats(i)), n => n.production);
   const times = target ? [ns.getHackTime(name), ns.getGrowTime(name), ns.getWeakenTime(name)] : [];
   return { time: Date.now(), hosts: network, home, target, phase, player, owned, nodes, hacknet, times,
-    income: ns.getTotalScriptIncome(), processes, workers, controller, policy,
+    income: ns.getTotalScriptIncome(), processes, workers, farmingWorkers, controller, policy,
     rooted: network.filter(h => h.hasAdminRights).length,
     ram: sum(network, h => h.hasAdminRights ? h.maxRam : 0),
     used: sum(network, h => h.hasAdminRights ? h.ramUsed : 0),
@@ -53,7 +53,7 @@ const small = text => box({color: palette.muted, fontSize: 13, lineHeight: 1.5},
 const label = text => box({fontSize: 11, color: palette.muted, letterSpacing: ".1em", fontWeight: 700, textTransform: "uppercase"}, text);
 const digits = (text, color = palette.ink) => box({fontSize: 30, fontWeight: 700, color, fontVariantNumeric: "tabular-nums"}, text);
 const grid = (...items) => box({display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(235px,100%),1fr))", gap: 12}, ...items);
-const card = (title, ...children) => box({background: palette.panel, border: "1px solid " + palette.line, borderRadius: 12, padding: 16, display: "grid", alignContent: "start", gap: 9}, label(title), ...children);
+const card = (title, ...children) => box({background: palette.panel, border: "1px solid " + palette.line, borderRadius: 12, padding: 14, display: "grid", alignContent: "start", gap: 7}, label(title), ...children);
 const bar = (value, max, color) => box({height: 7, background: "#304051", borderRadius: 4, overflow: "hidden"},
   box({height: "100%", width: Math.min(100, Math.max(0, max ? 100 * value / max : 0)) + "%", background: color}));
 const phases = {
@@ -93,23 +93,20 @@ function operation(d) {
       ...d.policy.targets.map(lane=>box({display:"flex",justifyContent:"space-between",gap:10},
         h("strong",null,lane.name),small(lane.phase+" · "+fmt.format(lane.threads)+" threads")))));
 }
-function roadmap(d, goal) {
-  const {player} = d;
-  const steps = gates.map(([faction,host]) => ({faction, server:d.hosts.find(s=>s.name===host)})).filter(s=>s.server);
-  return card("Next milestones", goal && box({borderLeft:"3px solid "+palette.gold,paddingLeft:12},
-    h("strong",null,goal), small("Pinned goal · Read live reputation in Factions or the character overview.")),
-    ...steps.map(({faction,server}) => {
-      const joined = player.factions.includes(faction);
-      const status = joined ? "Joined" : server.backdoorInstalled ? "Check invitations" :
-        player.skills.hacking < server.requiredHackingSkill ? "Hack " + player.skills.hacking + " / " + server.requiredHackingSkill :
-        server.hasAdminRights ? "Ready for backdoor" : "Root access needed";
-      return box({display:"grid",gap:5}, box({display:"flex",justifyContent:"space-between",gap:10},h("strong",null,faction),small(status)),
-        !joined && bar(player.skills.hacking,server.requiredHackingSkill,palette.blue));
-    }));
+function farming(d) {
+  const total = sum(d.farmingWorkers, w=>w.threads);
+  const servers = new Set(d.farmingWorkers.map(w=>w.args[1])).size;
+  return card("Farming workload", digits(fmt.format(total)+" threads",palette.blue),
+    small(d.farmingWorkers.length+" worker processes across "+servers+" active servers"),
+    ...[["hack","Hacking",palette.mint],["grow","Growing",palette.gold],["weaken","Weakening",palette.blue]].map(([op,title,color])=>{
+      const threads=sum(d.farmingWorkers.filter(w=>w.args[0]===op),w=>w.threads);
+      return box({display:"grid",gap:5},box({display:"flex",justifyContent:"space-between",gap:10},
+        h("strong",null,title),small(fmt.format(threads)+" threads")),bar(threads,total,color));
+    }),small("Hacknet production: "+rate(d.hacknet)+" · "+d.nodes+" nodes"));
 }
-function overview(d, history, goal) {
+function overview(d, history) {
   return box({display:"grid",gap:12},grid(operation(d),card("Balance history",digits(cash(d.player.money),palette.mint),trendChart(history,"cash",cash,palette.mint,"Balance"))),
-    grid(roadmap(d,goal),card("Background work",
+    grid(farming(d),card("Background work",
       h("strong",null,d.scanner ? "Contract scanner online" : "Contract scanner offline"),
       small(d.contracts.length + " contract files on the network. Supported puzzles are attempted by contracts.js."),
       h("strong",null,fmt.format(d.shares)+" reputation-sharing threads"),
@@ -133,7 +130,6 @@ function details(d, history) {
   const recent = history.filter(p=>p.time>=d.time-60000), first=recent[0];
   const span=first ? (d.time-first.time)/1000 : 0;
   const t=d.target, p=d.player;
-  const next=programs.find(([file])=>!d.owned.some(([owned])=>owned===file));
   return box({display:"grid",gap:12},grid(card("Income",digits(rate(d.income[1])),small("Average script income since installing augments"),
     small("Active scripts: "+rate(d.income[0])),small("Recent net cash change: "+(span>=5?rate((p.money-first.cash)/span):"Collecting samples")),
     small("Hacknet: "+rate(d.hacknet)+" across "+d.nodes+" nodes")),
@@ -144,7 +140,7 @@ function details(d, history) {
       t && small("Security "+t.hackDifficulty.toFixed(2)+" · Minimum "+t.minDifficulty.toFixed(2)),
       t && small("Estimated H / G / W times: "+d.times.map(ms=>Math.ceil(ms/1000)+"s").join(" / "))),
     card("Access programs",h("strong",null,d.owned.length+" / 5 port openers"),small(d.owned.map(([f])=>f.replace(".exe","")).join(" · ")),
-      small(next?"Next: "+next[0]+" · "+cash(next[1])+(p.money>=next[1]?" · Affordable":""):"All port openers acquired."))),
+      small("Programs currently available on home."))),
     card("Target selection",small(d.policy?.reason ?? "Controller selection data not available"),
       small("Estimates include recovery and preparation; they are not measured income."),
       ...(d.policy?.candidates ?? []).map(c=>small(c.name + " · " + rate(c.score) + " estimated · " + Math.ceil(c.prepSeconds) + "s preparation"))),
@@ -171,9 +167,9 @@ function trends(d, history) {
     card("Hacking experience",digits("+"+xp(Math.max(0,d.player.exp.hacking-first.xp)),palette.blue),
       small("Gained during the displayed window"),trendChart(history,"xp",xp,palette.blue,"Total hacking experience")),
     card("Allocated network memory",digits(gb(d.used),palette.gold),trendChart(history,"ram",gb,palette.gold,"Used RAM")),
-    card("Hacking workload",digits(fmt.format(sum(d.workers,w=>w.threads))+" threads"),trendChart(history,"workers",n=>fmt.format(n)+" threads",palette.mint,"Target worker threads")));
+    card("Hacking workload",digits(fmt.format(sum(d.farmingWorkers,w=>w.threads))+" threads"),trendChart(history,"workers",n=>fmt.format(n)+" threads",palette.mint,"All farming worker threads")));
 }
-function Dashboard({feed,goal}) {
+function Dashboard({feed}) {
   const root = React.useRef(null);
   React.useLayoutEffect(() => {
     // Tail logs normally align to the bottom. Scope layout changes to this tail.
@@ -197,18 +193,18 @@ function Dashboard({feed,goal}) {
   const [frame,setFrame]=React.useState(feed.latest);
   React.useEffect(()=>{feed.update=setFrame;setFrame(feed.latest);return ()=>{feed.update=null;};},[feed]);
   const {data,history}=frame;
-  return h("div",{ref:root,className:"kazah-operations-desk",style:{flex:"1 0 auto",boxSizing:"border-box",width:"100%",minWidth:0,whiteSpace:"normal",background:"#0e1823",color:palette.ink,
+  return h("div",{ref:root,className:"farming-monitor",style:{flex:"1 0 auto",boxSizing:"border-box",width:"100%",minWidth:0,whiteSpace:"normal",background:"#0e1823",color:palette.ink,
     font:"15px/1.4 'Segoe UI', sans-serif",padding:"18px 20px 22px",textAlign:"left"}},
-    box({display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:10,flexWrap:"wrap"},h("h2",{style:{margin:0,fontSize:28,letterSpacing:"-.035em"}},"Operations desk"),
-      small("Kazah  /  "+data.player.city+"  ·  "+new Date(data.time).toLocaleTimeString("en-GB"))),
+    box({display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:10,flexWrap:"wrap"},h("h2",{style:{margin:0,fontSize:28,letterSpacing:"-.035em"}},"Farming Monitor"),
+      small("Updated "+new Date(data.time).toLocaleTimeString("en-GB"))),
     box({display:"flex",gap:6,margin:"13px 0 15px"},...["Overview","Trends","Network","Details"].map(name=>h("button",{key:name,onClick:()=>setTab(name),"aria-pressed":name===tab,
       style:{cursor:"pointer",border:"1px solid "+palette.line,borderRadius:6,padding:"7px 14px",font:"inherit",fontWeight:600,
         color:tab===name?"#10202a":palette.ink,background:tab===name?palette.mint:palette.panel}},name))),
     indicators(data,history),
-    tab==="Trends"?trends(data,history):tab==="Overview"?overview(data,history,goal):tab==="Network"?networkView(data,selected,select):details(data,history));
+    tab==="Trends"?trends(data,history):tab==="Overview"?overview(data,history):tab==="Network"?networkView(data,selected,select):details(data,history));
 }
 
-/** Usage: run monitor.js [refresh-ms] ["goal to display"] */
+/** Usage: run monitor.js [refresh-ms]. Legacy reminder arguments are ignored. */
 export async function main(ns) {
   ns.disableLog("ALL");
   if (ns.getHostname()!=="home" || ns.ps("home").filter(p=>p.filename===ns.getScriptName()).length>1) {
@@ -216,21 +212,20 @@ export async function main(ns) {
   }
   const requested=Number(ns.args[0]??2000);
   const refresh=Number.isFinite(requested)?Math.max(1000,requested):2000;
-  const goal=ns.args.slice(1).join(" ");
   const feed={latest:null,update:null};
   const history=[];
   ns.ui.openTail();
   const [width,height]=ns.ui.windowSize();
-  ns.ui.resizeTail(Math.min(1080,width-30),Math.min(780,height-90));
-  ns.ui.moveTail(Math.max(10,Math.min(265,width-1110)),35);
-  ns.ui.setTailTitle("Kazah  /  Operations desk");
+  ns.ui.resizeTail(Math.min(1200,width-30),Math.min(900,height-90));
+  ns.ui.moveTail(Math.max(10,Math.min(265,width-1230)),35);
+  ns.ui.setTailTitle("Farming Monitor");
   while (true) {
     const data=snapshot(ns);
-    history.push({time:data.time,cash:data.player.money,xp:data.player.exp.hacking,ram:data.used,workers:sum(data.workers,w=>w.threads)});
+    history.push({time:data.time,cash:data.player.money,xp:data.player.exp.hacking,ram:data.used,workers:sum(data.farmingWorkers,w=>w.threads)});
     while(history.length>1 && history[0].time<data.time-600000) history.shift();
     const first=!feed.latest;
     feed.latest={data,history:[...history]};
-    if(first) ns.printRaw(h(Dashboard,{feed,goal}));
+    if(first) ns.printRaw(h(Dashboard,{feed}));
     else feed.update?.(feed.latest);
     await ns.sleep(refresh);
   }

@@ -23,3 +23,16 @@ workers=false; assert.equal(snapshot(ns).target.name,'foodnstuff');
 assert.equal(snapshot(ns).phase,'waiting');
 running=false; assert.equal(snapshot(ns).policy,null);assert.equal(snapshot(ns).phase,'idle');
 console.log('PASS: automatic target, missing/corrupt/stale/wrong-PID telemetry, phase transitions and stopped controller.');
+
+running=true;workers=true;
+const originalPs=ns.ps;
+ns.ps=host=>host==='home'?originalPs(host):[
+  {filename:'task.js',args:['weaken','n00dles'],threads:7},
+  {filename:'task.js',args:['hack','foodnstuff'],threads:2},
+  {filename:'share.js',args:['cycle-fill',7],threads:20},
+];
+const all=snapshot(ns);
+assert.equal(all.farmingWorkers.reduce((n,w)=>n+w.threads,0),12);
+assert.equal(all.workers.reduce((n,w)=>n+w.threads,0),5);
+assert.equal(all.shares,20);
+console.log('PASS: network-wide farming workload includes multiple servers and phases, excludes sharing, and preserves per-target details.');

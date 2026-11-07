@@ -75,16 +75,16 @@ Start `monitor.js` on home and check the installed version's RAM requirement wit
 
 ```text
 run monitor.js
-run monitor.js 2000 "Your next faction milestone"
+run monitor.js 2000
 ```
 
-Choose one command. The first argument is the sample interval in milliseconds (default 2000, minimum 1000). The optional text pins a reminder on Overview. It stays as entered until the monitor is restarted. If using terminal `tail` or `kill`, supply the same script arguments used at launch.
+Choose one command. The first argument is the sample interval in milliseconds (default 2000, minimum 1000). Legacy reminder arguments are ignored. The generic **Farming Monitor** has no personal branding, milestone checklist or suggested purchases. If using terminal `tail` or `kill`, supply the same script arguments used at launch.
 
-**Overview** translates the active target operation into a short explanation. The balance chart records up to ten minutes of samples, starting at launch. Its vertical scale follows the observed range. Balance includes purchases, contracts and other income. Faction bars compare the player's current hacking level with each server's requirement. Use the game's character overview or Factions screen for live reputation and Augmentations for the install queue.
+**Overview** translates the active target operation into a short explanation. The balance chart records up to ten minutes of samples, starting at launch. Its vertical scale follows the observed range. Balance includes purchases, contracts and other income. The farming workload panel counts every running `task.js` process across the normal network, groups threads into hack, grow and weaken operations, and displays Hacknet production. These are allocated threads, not measured throughput. Background metrics show sharing threads, contract-scanner status and network RAM use.
 
 **Network** lets you select a server, follow its route from home and inspect its memory, access and activity. The memory ranking shows the five busiest hosts by allocated GB. Network capacity includes rooted servers with RAM and home. Free memory can be available between operations even when the controller is healthy.
 
-**Trends** charts balance, total hacking experience, allocated RAM and target worker threads. All four use the same rolling ten-minute sample window and separate vertical scales. The summary strip shows average script income since installing augmentations, observed hacking XP per hour, free network RAM and process/thread counts. The XP rate uses up to one minute of player experience samples, includes all sources, and warms up for five seconds.
+**Trends** charts balance, total hacking experience, allocated RAM and all farming worker threads. All four use the same rolling ten-minute sample window and separate vertical scales. The summary strip shows average script income since installing augmentations, observed hacking XP per hour, free network RAM and process/thread counts. The XP rate uses up to one minute of player experience samples, includes all sources, and warms up for five seconds.
 
 The dashboard aligns its own tail container to the top, including after resizing. Its component restores the container layout when unmounted.
 

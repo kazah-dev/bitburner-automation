@@ -44,7 +44,7 @@ Source comments and the operating guide describe parameters, side effects and li
 
 ## Live dashboard
 
-Run `monitor.js` on home to open **Operations desk** in the game. **Overview** explains the current hacking phase, charts your balance and shows upcoming faction unlocks. **Network** lets you pick a server and follow the route to it. **Details** breaks down income, scripts, character stats and open contracts. The dashboard follows the active controller target and refreshes every two seconds by default.
+Run `monitor.js` on home to open **Farming Monitor** in the game. This generic dashboard displays operational metrics without personal branding, progression objectives or reminders. **Overview** explains the current hacking phase, charts your balance and breaks down hacking, growing and weakening threads across all farming workers. It also shows Hacknet production, contract-scanner status, sharing threads and RAM use. **Network** lets you inspect servers and routes. **Details** breaks down income, scripts, character stats and open contracts. The dashboard refreshes every two seconds by default.
 
 ```text
 mem monitor.js
@@ -52,7 +52,7 @@ run monitor.js
 tail monitor.js
 ```
 
-To pin a personal milestone, start the monitor with a refresh interval and quoted goal, for example `run monitor.js 2000 "Save for the next home upgrade"`. Reopen that instance from **Active Scripts**. Read [the monitor guide](OPERATIONS.md#live-monitor) for chart definitions, controls and the distinction between live data and the pinned reminder.
+Use `run monitor.js 2000` to set the refresh interval in milliseconds. Legacy reminder arguments are ignored. Reopen an existing instance from **Active Scripts**. Read [the monitor guide](OPERATIONS.md#live-monitor) for chart definitions and controls.
 
 ## Automatic coding contracts
 
@@ -68,7 +68,7 @@ On `home`, run `mem contracts.js` to check the RAM requirement, then `run contra
 
 Successful submissions print the host, filename and reward in the terminal. Unsupported types and unexpected input stay available for manual review. If the game rejects an answer, the worker records the contract in `contracts-rejected.txt` on home and skips it on subsequent scans and restarts.
 
-The summary strip tracks script income, recent hacking XP per hour, available memory and running processes. Open **Trends** to compare balance, experience, RAM use and target worker threads over the same ten-minute window. **Details** shows the target-selection policy and leading candidate estimates separately from measured income. Hacking XP includes every source. The hourly rate extrapolates the last minute of samples and can jump when an operation completes.
+The summary strip tracks script income, recent hacking XP per hour, available memory and running processes. Open **Trends** to compare balance, experience, RAM use and all farming worker threads over the same ten-minute window. **Details** shows the target-selection policy and leading candidate estimates separately from measured income. Hacking XP includes every source. The hourly rate extrapolates the last minute of samples and can jump when an operation completes.
 
 ## Operating principles
 
