@@ -1,5 +1,7 @@
 # Runtime state and private playthrough snapshots
 *-status.txt
 contracts-rejected.txt
+capital-state.txt
+capital-config.txt
 *.save
 *.log

@@ -4,9 +4,9 @@
 
 ### Service recovery
 
-Run `economy.js` on home to supervise `contracts.js`, `monitor.js` and `cycle.js`. It starts missing services in that order and checks again every 30 seconds. A launch attempt has a five-minute cooldown, preventing tight failure loops. Existing processes and custom arguments are preserved. When recovery needs RAM it may stop only managed `share.js cycle-fill` workers on home; it never stops unrelated processes or hacking tasks. Missing files and insufficient RAM are reported in its log.
+Run `economy.js` on home to supervise `cycle.js`, `contracts.js`, `monitor.js` and `capital.js`. It starts missing services in that order and checks again every 30 seconds. A launch attempt has a five-minute cooldown, preventing tight failure loops. Low-memory waits are retried on the next sweep. Existing processes and custom arguments are preserved. When recovery needs RAM it may stop only managed `share.js cycle-fill` workers on home; it never stops unrelated processes or hacking tasks. Missing files and insufficient RAM are reported in its log.
 
-Stop the supervisor before intentionally stopping a core service. It does not reset the game, choose faction work, install augmentations or buy anything. To start it when opening the game, enter `economy.js` in **Options → System → Autoexec Script + Args**. This uses the game's startup setting and adds no Windows task. Check memory requirements before enabling startup on a small home server.
+Stop the supervisor before intentionally stopping a core service. It does not reset the game, choose faction work or install augmentations. Its `capital.js` service makes bounded purchases by default; pause purchases through `capital-config.txt`. To start the supervisor when opening the game, enter `economy.js` in **Options → System → Autoexec Script + Args**. This uses the game's startup setting and adds no Windows task. Check memory requirements before enabling startup on a small home server.
 
 Autoexec runs when loading the game; installing augmentations still requires starting the supervisor again. On reload, Autoexec can overlap with the saved supervisor. The lowest-PID supervisor keeps running while newer copies exit, preventing both copies from shutting down together.
 
@@ -125,3 +125,24 @@ Run one deployer at a time. Existing no-argument workers are skipped, existing d
 The scripts have been exercised in the Steam game: complete prepare/hack cycles, helper inventory, bounded Hacknet purchases, shared RAM, and rejection of legacy deployment during coordinated mode. In-game logs remain the authority for a particular save.
 
 For missing files, failed launches or insufficient RAM, correct the reported condition and retry. For slow production, inspect target money, security, operation duration and preparation rounds. Record income across a full cycle rather than inferring it from thread counts.
+
+
+## Automatic investment and recovery
+
+Deploy `capital.js` before updating and restarting `economy.js`. The supervisor preserves existing services and their arguments, then starts any missing hacking controller, contract solver, monitor and investor in that order. Set the game's Autoexec field to `economy.js`. Installing augmentations still requires manual action; if Autoexec does not run after installation, start `economy.js` manually. Reopening the game and an augmentation reset are different events: only new reset timestamps reset the investment ledger.
+
+The investor uses the Bitburner 3 cloud API and requires no Singularity functions. It manages upgrades on all purchased cloud servers, including manually purchased ones. Upgrades double RAM in place and preserve processes; new servers have collision-free `worker-NN` names. The existing one-shot `fleet.js` remains available for explicitly budgeted manual expansion. Avoid simultaneous purchases from other helpers when you require strict cash-reserve guarantees.
+
+The persistent `capital-state.txt` ledger tracks initial credit, the wealth high-water mark and total charged spending. New credit is 20% of cash plus this investor's spending above its previous high-water mark. External purchases reduce future credit until wealth recovers; falling and recovering balances do not repeatedly create credit. Initial credit is 5% of cash at the first observation of the reset. Each minute can spend at most the remaining allowance, 5% of opening cash, and cash above the reserve. It executes at most eight Hacknet purchases or one cloud change per pass. This is a conservative budget policy, not a forecast of cloud profitability.
+
+The cash floor is the larger of `minCash` and the first missing port opener's reference price: $700k for TOR plus BruteSSH, $1.5m for FTP, $5m for SMTP, $30m for HTTP, $250m for SQL. After all five programs exist it keeps at least $100m. These prices match the tested Steam version; adjust the policy if game rules differ. The investor does not buy those programs itself.
+
+Cloud purchases require three consecutive samples with at least 60% of rooted usable RAM occupied by `task.js` threads. Home's 32 GB operating reserve is excluded from capacity; share workers are not farming demand. A low-demand sample resets the counter. Default fleet and per-server caps prevent indefinite expansion; reducing a cap never shrinks existing servers. Extra capacity is discovered by the controller without a restart.
+
+Hacknet choices use measured marginal dollar production and a 30-minute payback cutoff. A first node costing no more than $5,000 may be purchased in BitNode 1 to establish a measurement; this seed purchase is not an ROI claim. Other BitNodes with no existing nodes are skipped, as are hash-producing servers. Later node/level/RAM/core purchases use the same budget and reserve as cloud purchases.
+
+Create `capital-config.txt` with any subset of the fields in `capital.config.example.json`. `enabled:false` pauses all purchases; `maxFleetRam:0` disables cloud expansion and `paybackSeconds:0` disables Hacknet investment. Malformed configuration or ledger data pauses investment and writes an error to `capital-status.txt`. Fix the configuration or restore a valid ledger; do not delete the ledger merely to restart the process. The supervisor restarts a killed investor, so use configuration to pause spending.
+
+Spending is recorded before the purchase. If the game reports failure, the charge is refunded. If execution is interrupted during the purchase, the ledger conservatively retains the charge, possibly under-spending later. A restart cannot use that interrupted allowance twice. The file-only ledger is not transactional storage and should remain private runtime data. The investor checks that the hacking controller is present before making purchases; it does not diagnose every possible controller stall.
+
+Run `node capital.test.mjs` and `node economy.test.mjs` outside the game. Tests cover persistent budgets, reset detection, corrupt records, paused purchases, protected cash, demand gating, capacity caps, cloud naming, Hacknet ROI, interrupted/failed purchases, startup ownership and memory recovery. A simulated reset test does not replace an actual post-installation check.

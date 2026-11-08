@@ -1,0 +1,7 @@
+{
+  "enabled": true,
+  "minCash": 1000000,
+  "maxFleetRam": 65536,
+  "maxServerRam": 8192,
+  "paybackSeconds": 1800
+}

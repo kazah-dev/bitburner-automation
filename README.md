@@ -14,7 +14,7 @@ mem share.js
 run cycle.js auto
 ```
 
-For unattended service recovery, run `economy.js` instead. It starts missing contract, dashboard and controller services in that order, checks every 30 seconds and backs off for five minutes after each launch attempt. Existing instances and their arguments are preserved. If Autoexec and a saved supervisor start together, the lowest-PID instance remains active. Stop `economy.js` first when you intentionally want a service to remain stopped. It makes no purchases and does not reset the game.
+For unattended service recovery, run `economy.js` instead. It starts missing hacking, contract, dashboard and investment services in that order, checks every 30 seconds and backs off for five minutes after each launch attempt. Low-memory waits are retried on the next sweep. Existing instances and their arguments are preserved. If Autoexec and a saved supervisor start together, the lowest-PID instance remains active. Stop `economy.js` first when you intentionally want a service to remain stopped. The supervised `capital.js` service makes bounded infrastructure purchases by default. The supervisor does not install augmentations or reset the game.
 
 Save `cycle.js`, `task.js` and `share.js` on home. Check their RAM requirements with `mem`. The controller discovers the network, uses available port-opening programs and runs independent cycles on up to four accessible money targets. It can take multiple preparation rounds before producing money.
 
@@ -30,6 +30,7 @@ To pin a target or disable automatic sharing, use `run cycle.js sigma-cosmetics 
 | --- | --- |
 | [cycle.js](cycle.js) | Select targets, size operations and reclaim spare RAM across available servers |
 | [economy.js](economy.js) | Start missing core services and recover them with bounded retries |
+| [capital.js](capital.js) | Reinvest a limited share of new wealth in demand-driven cloud capacity and short-payback Hacknet upgrades |
 | [task.js](task.js) | Execute a single operation with the threads assigned by the controller |
 | [inspect.js](inspect.js) | Inventory contracts, faction routes, access requirements and candidate targets |
 | [audit.js](audit.js) | Export a read-only local snapshot of server processes, contracts and economic signals |
@@ -76,13 +77,23 @@ For additional worker capacity, `run fleet.js` previews one 1,024 GB cloud serve
 
 Run a single controller and choose one hacking mode at a time. Keep worker copies consistent, inspect failures, and distinguish allocated capacity from measured income. Compare production over similar time windows, including preparation costs when evaluating targets.
 
-The scripts operate within Bitburner's simulated environment. They do not automate faction membership, augmentation installation or resets. Purchases made by the Hacknet helper use game currency and explicit budget limits.
+The scripts operate within Bitburner's simulated environment. They do not automate faction membership, work selection, TOR/program purchases, home upgrades, backdoors, augmentation installation or resets; those actions need Singularity access for script automation. Purchases use game currency.
+
+## Automatic investment and reset recovery
+
+With `economy.js` configured as Autoexec, `capital.js` starts automatically alongside the core services. Its persistent ledger allows an initial 5% of the balance plus 20% of subsequent new wealth highs, less all of its previous spending. Each pass is additionally capped at 5% of current cash and preserves a cash reserve for missing port-opening programs. Restarts do not refresh the allowance. A genuine augmentation reset starts a new ledger using the reset timestamps.
+
+Cloud expansion requires three consecutive one-minute samples with at least 60% of usable rooted RAM assigned to farming workers. Sharing does not count as demand. It buys 64 GB servers or doubles existing purchased servers in place, with defaults of 8,192 GB per server and 65,536 GB across the purchased fleet. It never deletes servers or stops their scripts. Hacknet upgrades require an estimated payback within 30 minutes; a first node in BitNode 1 can be seeded for at most $5,000 before production is measurable. Hash-producing nodes are skipped.
+
+Inspect decisions with `tail capital.js` or `cat capital-status.txt`. To pause purchases while keeping farming active, create `capital-config.txt` on home containing `{"enabled":false}`. Configuration is read every minute; the [example configuration](capital.config.example.json) lists all available settings. Configuration, spending records and status files stay local.
+
+After an augmentation installation, verify Autoexec has restarted `economy.js`; if needed, run it once manually. It resumes hacking, supported contracts, monitoring and investment as funds and access recover. It detects programs you acquire manually through the existing controller. Read the [recovery and investment guide](OPERATIONS.md#automatic-investment-and-recovery) for limits and migration.
 
 ## Development
 
 Changes are published with their purpose, usage and validation. Commit history records the implementation's evolution; live levels, balances and network counts stay in the game and its logs.
 
-Run `node cycle.test.mjs`, `node monitor.test.mjs`, `node contracts.test.mjs`, `node hacknet.test.mjs` and `node fleet.test.mjs` outside the game. The suites cover preparation-aware ranking, concurrent targets, phase isolation, RAM reserves, worker ownership, restart draining, failed copies or launches, dashboard telemetry, contract quarantine and investment payback. Contract arithmetic is compared with brute-force reference results. They do not replace in-game performance measurements.
+Run `node cycle.test.mjs`, `node monitor.test.mjs`, `node contracts.test.mjs`, `node hacknet.test.mjs`, `node fleet.test.mjs`, `node economy.test.mjs` and `node capital.test.mjs` outside the game. The suites cover preparation-aware ranking, concurrent targets, phase isolation, RAM reserves, worker ownership, restart draining, failed copies or launches, dashboard telemetry, contract quarantine and investment payback. Contract arithmetic is compared with brute-force reference results. They do not replace in-game performance measurements.
 
 Compatibility, RAM costs and available APIs depend on the game version and progression state. Consult the in-game documentation when adapting the tools.
 
