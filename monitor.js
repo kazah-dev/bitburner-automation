@@ -17,18 +17,18 @@ function snapshot(ns) {
   }));
   const network = hosts.filter(host => host.name !== "darkweb");
   const processes = hosts.flatMap(host => host.processes);
-  const controller = processes.find(p => p.filename === "cycle.js");
+  const controller = processes.find(p => p.filename === "services/cycle.js");
   let policy = null;
   try {
-    const saved = JSON.parse(ns.read("cycle-status.txt") || "null");
+    const saved = JSON.parse(ns.read("data/cycle-status.txt") || "null");
     if (controller && saved?.controllerPid === controller.pid && Date.now() - saved.updatedAt < 15000) policy = saved;
   } catch { /* An absent or partial status file must never stop the dashboard. */ }
-  const activeWorker = processes.find(p => p.filename === "task.js");
+  const activeWorker = processes.find(p => p.filename === "workers/task.js");
   const requested = String(controller?.args[0] ?? "auto");
   const name = controller ? policy?.target ?? activeWorker?.args[1] ?? (requested !== "auto" ? requested : null) : null;
   const target = hosts.find(host => host.name === name);
-  const workers = processes.filter(p => p.filename === "task.js" && p.args[1] === name);
-  const farmingWorkers = processes.filter(p => p.filename === "task.js");
+  const workers = processes.filter(p => p.filename === "workers/task.js" && p.args[1] === name);
+  const farmingWorkers = processes.filter(p => p.filename === "workers/task.js");
   const phase = workers[0]?.args[0] ?? (controller ? "waiting" : "idle");
   const player = ns.getPlayer();
   const home = hosts.find(host => host.name === "home");
@@ -42,8 +42,8 @@ function snapshot(ns) {
     ram: sum(network, h => h.hasAdminRights ? h.maxRam : 0),
     used: sum(network, h => h.hasAdminRights ? h.ramUsed : 0),
     contracts: hosts.flatMap(h => h.files.map(file => ({file, host: h.name}))),
-    shares: sum(processes.filter(p => p.filename === "share.js"), p => p.threads),
-    scanner: processes.some(p => p.filename === "contracts.js"),
+    shares: sum(processes.filter(p => p.filename === "workers/share.js"), p => p.threads),
+    scanner: processes.some(p => p.filename === "services/contracts.js"),
   };
 }
 
@@ -61,7 +61,7 @@ const phases = {
   grow: ["Refilling the target", "Workers are putting money back so the next hack can pay out.", palette.gold],
   hack: ["Collecting money", "Workers are trying to transfer money to your balance.", palette.mint],
   waiting: ["Between operations", "The controller is checking the target before assigning its next job.", palette.blue],
-  idle: ["Controller offline", "Start cycle.js on home to coordinate the network.", palette.gold],
+  idle: ["Controller offline", "Start services/cycle.js on home to coordinate the network.", palette.gold],
 };
 function trendChart(history, field, format, color, name) {
   if (history.length < 2) return small("Collecting the first samples…");
@@ -108,7 +108,7 @@ function overview(d, history) {
   return box({display:"grid",gap:12},grid(operation(d),card("Balance history",digits(cash(d.player.money),palette.mint),trendChart(history,"cash",cash,palette.mint,"Balance"))),
     grid(farming(d),card("Background work",
       h("strong",null,d.scanner ? "Contract scanner online" : "Contract scanner offline"),
-      small(d.contracts.length + " contract files on the network. Supported puzzles are attempted by contracts.js."),
+      small(d.contracts.length + " contract files on the network. Supported puzzles are attempted by services/contracts.js."),
       h("strong",null,fmt.format(d.shares)+" reputation-sharing threads"),
       small("Automatic sharing gives RAM back before the next hacking phase. Manual sharing stays reserved."),
       h("strong",null,fmt.format(d.used)+" / "+fmt.format(d.ram)+" GB in use"),bar(d.used,d.ram,palette.blue),
@@ -204,7 +204,7 @@ function Dashboard({feed}) {
     tab==="Trends"?trends(data,history):tab==="Overview"?overview(data,history):tab==="Network"?networkView(data,selected,select):details(data,history));
 }
 
-/** Usage: run monitor.js [refresh-ms]. Legacy reminder arguments are ignored. */
+/** Usage: run ui/monitor.js [refresh-ms]. Legacy reminder arguments are ignored. */
 export async function main(ns) {
   ns.disableLog("ALL");
   if (ns.getHostname()!=="home" || ns.ps("home").filter(p=>p.filename===ns.getScriptName()).length>1) {

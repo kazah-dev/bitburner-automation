@@ -1,4 +1,4 @@
-/** Execute one operation with all threads allocated by cycle.js.
+/** Execute one operation with all threads allocated by services/cycle.js.
  * @param {NS} ns
  */
 export async function main(ns) {

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-const code=await readFile(new URL('./fleet.js',import.meta.url),'utf8');
+const code=await readFile(new URL('../tools/fleet.js',import.meta.url),'utf8');
 const {main}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 function fixture(args,cash=158e6){
   const names=[],log=[];let calls=0;
-  return {names,log,get calls(){return calls;},get cash(){return cash;},ns:{args,disableLog(){},getHostname:()=> 'home',getScriptName:()=> 'fleet.js',ps:()=>[{filename:'fleet.js'}],
+  return {names,log,get calls(){return calls;},get cash(){return cash;},ns:{args,disableLog(){},getHostname:()=> 'home',getScriptName:()=> 'tools/fleet.js',ps:()=>[{filename:'tools/fleet.js'}],
     getServerMoneyAvailable:()=>cash,serverExists:n=>names.includes(n),tprint:s=>log.push(s),
     cloud:{getRamLimit:()=>1048576,getServerLimit:()=>25,getServerNames:()=>names,getServerCost:r=>r*55000,
       purchaseServer:(n,r)=>{calls++;cash-=r*55000;names.push(n);return n;}}}};

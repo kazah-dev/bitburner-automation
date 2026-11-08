@@ -1,14 +1,14 @@
 // Run outside Bitburner: node monitor.test.mjs
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-const source = await readFile(new URL('./monitor.js', import.meta.url), 'utf8');
+const source = await readFile(new URL('../ui/monitor.js', import.meta.url), 'utf8');
 const {snapshot} = await import('data:text/javascript;base64,' + Buffer.from(source + '\nexport {snapshot};').toString('base64'));
 let raw='', running=true, workers=true;
 const ns={
   scan:h=>h==='home'?['foodnstuff']:['home'],
   getServer:h=>({hostname:h,hasAdminRights:true,maxRam:64,ramUsed:10,moneyAvailable:100,moneyMax:100}),
-  ps:h=>h==='home'?[...(running?[{pid:7,filename:'cycle.js',args:['auto']}]:[]),
-    ...(workers?[{pid:8,filename:'task.js',args:['grow','foodnstuff'],threads:3}]:[])]:[],
+  ps:h=>h==='home'?[...(running?[{pid:7,filename:'services/cycle.js',args:['auto']}]:[]),
+    ...(workers?[{pid:8,filename:'workers/task.js',args:['grow','foodnstuff'],threads:3}]:[])]:[],
   ls:()=>[],read:()=>raw,getPlayer:()=>({factions:[],skills:{hacking:1}}),fileExists:()=>false,
   hacknet:{numNodes:()=>0},getHackTime:()=>100,getGrowTime:()=>320,getWeakenTime:()=>400,getTotalScriptIncome:()=>[0,0],
 };
@@ -27,9 +27,9 @@ console.log('PASS: automatic target, missing/corrupt/stale/wrong-PID telemetry, 
 running=true;workers=true;
 const originalPs=ns.ps;
 ns.ps=host=>host==='home'?originalPs(host):[
-  {filename:'task.js',args:['weaken','n00dles'],threads:7},
-  {filename:'task.js',args:['hack','foodnstuff'],threads:2},
-  {filename:'share.js',args:['cycle-fill',7],threads:20},
+  {filename:'workers/task.js',args:['weaken','n00dles'],threads:7},
+  {filename:'workers/task.js',args:['hack','foodnstuff'],threads:2},
+  {filename:'workers/share.js',args:['cycle-fill',7],threads:20},
 ];
 const all=snapshot(ns);
 assert.equal(all.farmingWorkers.reduce((n,w)=>n+w.threads,0),12);

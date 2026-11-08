@@ -1,9 +1,9 @@
 /** Adaptive concurrent hacking with reclaimable faction-sharing workers.
- * Usage: run cycle.js [auto|hostname] [home-reserve-GB=16] [share|off] [max-targets=4]
- * Owns task.js and share.js processes tagged cycle-fill. No purchases or resets.
+ * Usage: run services/cycle.js [auto|hostname] [home-reserve-GB=16] [share|off] [max-targets=4]
+ * Owns workers/task.js and workers/share.js processes tagged cycle-fill. No purchases or resets.
  */
 const TAG = "cycle-fill";
-const STATUS = "cycle-status.txt";
+const STATUS = "data/cycle-status.txt";
 const HORIZON = 1800;
 
 // Pure policy helpers are exported for the offline regression suite.
@@ -56,7 +56,7 @@ function discover(ns) {
 
 function model(ns, s, capacity) {
   // Normalize live API measurements to minimum security. See the source links
-  // in OPERATIONS.md for the game's time, security and growth relationships.
+  // in docs/OPERATIONS.md for the game's time, security and growth relationships.
   const security = Math.max(1, s.hackDifficulty), min = Math.max(1, s.minDifficulty);
   if (security >= 100) return null;
   const ratio = (100 - min) / (100 - security);
@@ -86,10 +86,10 @@ export async function main(ns) {
   if(!Number.isFinite(reserve)||reserve<8)throw Error("Reserve must be at least 8 GB.");
   if(!["share","off"].includes(fillerMode))throw Error("Expected share or off.");
   if(!Number.isInteger(lanes)||lanes<1||lanes>8)throw Error("Use 1 to 8 targets.");
-  if(ns.getHostname()!=="home")throw Error("Run cycle.js on home.");
+  if(ns.getHostname()!=="home")throw Error("Run services/cycle.js on home.");
   if(ns.ps('home').filter(p=>p.filename===ns.getScriptName()).length>1)throw Error("Only one controller may run.");
   if(mode!=="auto"&&!ns.serverExists(mode))throw Error("Unknown target: "+mode);
-  const taskRam=ns.getScriptRam('task.js','home'),shareRam=ns.getScriptRam('share.js','home');
+  const taskRam=ns.getScriptRam('workers/task.js','home'),shareRam=ns.getScriptRam('workers/share.js','home');
   if(!(taskRam>0)||fillerMode==='share'&&!(shareRam>0))throw Error("Missing workers.");
   const openers=[['BruteSSH.exe',h=>ns.brutessh(h)],['FTPCrack.exe',h=>ns.ftpcrack(h)],
     ['relaySMTP.exe',h=>ns.relaysmtp(h)],['HTTPWorm.exe',h=>ns.httpworm(h)],['SQLInject.exe',h=>ns.sqlinject(h)]];
@@ -110,14 +110,14 @@ export async function main(ns) {
   };
   // Stop only obsolete workers owned by this system; drain all existing tasks.
   const initial=discover(ns);
-  for(const h of initial)for(const p of ns.ps(h))if(p.filename==='inicio.js'||p.filename==='share.js'&&p.args[0]===TAG)ns.kill(p.pid);
-  const pending=initial.flatMap(h=>ns.ps(h).filter(p=>p.filename==='task.js'));
+  for(const h of initial)for(const p of ns.ps(h))if(p.filename==='legacy/inicio.js'||p.filename==='workers/share.js'&&p.args[0]===TAG)ns.kill(p.pid);
+  const pending=initial.flatMap(h=>ns.ps(h).filter(p=>p.filename==='workers/task.js'));
   // Keep reputation support alive while an update waits for old hacking work.
   if(pending.length&&fillerMode==='share'&&ns.getPlayer().factions.length)for(const host of initial){
     const s=ns.getServer(host);if(!s.hasAdminRights)continue;
     const threads=freeThreads(s,shareRam,reserve);if(!threads)continue;
-    if(host!=='home'&&!await ns.scp('share.js',host,'home'))continue;
-    const pid=ns.exec('share.js',host,threads,TAG,ns.pid);if(pid)shares.push(pid);
+    if(host!=='home'&&!await ns.scp('workers/share.js',host,'home'))continue;
+    const pid=ns.exec('workers/share.js',host,threads,TAG,ns.pid);if(pid)shares.push(pid);
   }
   while(pending.some(p=>ns.isRunning(p.pid))){await report();await ns.sleep(250);}
   ns.tprint('Controller online: up to '+lanes+' independent targets. Home reserve '+reserve+' GB.');
@@ -137,7 +137,7 @@ export async function main(ns) {
       const pool=hosts.map(h=>ns.getServer(h)).filter(s=>s.hasAdminRights&&s.maxRam>=taskRam)
         .sort((a,b)=>b.cpuCores-a.cpuCores||b.maxRam-a.maxRam);
       const activeThreads=pool.reduce((n,s)=>n+ns.ps(s.hostname)
-        .filter(p=>p.filename==='task.js').reduce((count,p)=>count+p.threads,0),0);
+        .filter(p=>p.filename==='workers/task.js').reduce((count,p)=>count+p.threads,0),0);
       capacity=pool.reduce((n,s)=>n+freeThreads(s,taskRam,reserve),0)+activeThreads;
       // Keep at least 25% of usable capacity available to faction sharing.
       const laneCap=Math.max(1,Math.floor(capacity*(fillerMode==='share'?.75:1)/lanes));
@@ -166,8 +166,8 @@ export async function main(ns) {
           if(op==='grow')effect=1/ns.growthAnalyze(slot.target,Math.E,current.cpuCores);
           const threads=Math.min(available,effect>0?Math.ceil(remaining/effect):0);
           if(!(threads>0))continue;
-          if(machine.hostname!=='home'&&!await ns.scp('task.js',machine.hostname,'home')){ns.print('Copy failed: '+machine.hostname);continue;}
-          const pid=ns.exec('task.js',machine.hostname,threads,op,slot.target);
+          if(machine.hostname!=='home'&&!await ns.scp('workers/task.js',machine.hostname,'home')){ns.print('Copy failed: '+machine.hostname);continue;}
+          const pid=ns.exec('workers/task.js',machine.hostname,threads,op,slot.target);
           if(!pid){ns.print('Launch failed: '+machine.hostname);continue;}
           slot.pids.push(pid);assigned+=threads;remaining-=threads*effect;
         }
@@ -177,8 +177,8 @@ export async function main(ns) {
       if(fillerMode==='share'&&ns.getPlayer().factions.length)for(const machine of pool){
         const threads=freeThreads(ns.getServer(machine.hostname),shareRam,reserve);
         if(!threads)continue;
-        if(machine.hostname!=='home'&&!await ns.scp('share.js',machine.hostname,'home'))continue;
-        const pid=ns.exec('share.js',machine.hostname,threads,TAG,ns.pid);if(pid)shares.push(pid);
+        if(machine.hostname!=='home'&&!await ns.scp('workers/share.js',machine.hostname,'home'))continue;
+        const pid=ns.exec('workers/share.js',machine.hostname,threads,TAG,ns.pid);if(pid)shares.push(pid);
       }
       await report(true);
     }
