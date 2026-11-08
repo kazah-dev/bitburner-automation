@@ -48,6 +48,8 @@ To pause purchases, save `{"enabled":false}` in `data/capital-config.txt`. The [
 
 ## Validation
 
+Optional concurrency check: run `tools/concurrency.js` for a preview, then add `apply` to hold 1,000 small workers for 20 seconds. This meets the "Need more real life ram" achievement condition. It requires about 1,600 GB on home plus a 32 GB reserve, temporarily reclaims only controller-owned sharing workers, and cleans up its own processes on completion or launch failure. Farming tasks remain running. The generated helper in `workers/concurrency-wait.js` also expires after 60 seconds; the tool is never started automatically.
+
 Run `npm test` with Node.js from the repository root. Tests cover ranking, phase isolation, RAM ownership, restart draining, contract arithmetic and quarantine, investment limits, crash accounting, service recovery and folder migration. Live checks remain necessary for compatibility and throughput: estimates are not guaranteed income or a claim of globally optimal farming.
 
 The [operating guide](docs/OPERATIONS.md) documents assumptions and tradeoffs. Changes include their purpose, usage and verification; this README remains independent of any level, balance or reset count.
