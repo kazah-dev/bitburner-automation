@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-const src=await readFile(new URL('./capital.js',import.meta.url),'utf8');
+const src=await readFile(new URL('../services/capital.js',import.meta.url),'utf8');
 const {tick,ledgerFrom,updateLedger,allowance,configFrom}=await import('data:text/javascript;base64,'+Buffer.from(src).toString('base64'));
 let s=ledgerFrom('', '1:2', 1000);
 assert.equal(allowance(s,1000,0),50);
@@ -21,8 +21,8 @@ function mock({cash=1e9,load=0.7,hash=false,empty=false}={}) {
     getServerMoneyAvailable:()=>state.cash,fileExists:()=>true,tprint(){},
     getScriptRam:()=>2,scan:h=>h==='home'?['owned']:['home'],hasRootAccess:()=>true,
     getServerMaxRam:h=>hosts[h]||0,serverExists:h=>h in hosts,
-    ps:h=>h==='home'?[...(state.controller?[{filename:'cycle.js'}]:[]),
-      {filename:'task.js',threads:state.load*(2048-32)/2},{filename:'share.js',threads:100000}]:[],
+    ps:h=>h==='home'?[...(state.controller?[{filename:'services/cycle.js'}]:[]),
+      {filename:'workers/task.js',threads:state.load*(2048-32)/2},{filename:'workers/share.js',threads:100000}]:[],
     cloud:{getServerNames:()=>Object.keys(hosts).filter(h=>h!=='home'),getRamLimit:()=>8192,getServerLimit:()=>1,
       getServerUpgradeCost:(h,r)=>(r-hosts[h])*55000,getServerCost:r=>r*55000,
       upgradeServer(h,r){events.push('buy');if(state.crash)throw Error('interrupted');if(state.fail)return false;
@@ -38,13 +38,13 @@ function mock({cash=1e9,load=0.7,hash=false,empty=false}={}) {
 {
  const m=mock(), r={};await tick(m.ns,r);await tick(m.ns,r);assert.equal(m.buys.length,0);
  m.state.cash+=1e9;await tick(m.ns,r);assert.deepEqual(m.buys,['cloud']);
- assert(m.events.lastIndexOf('write:capital-state.txt')<m.events.lastIndexOf('buy'));
- const spent=JSON.parse(m.files.get('capital-state.txt')).spent;
- await tick(m.ns,{});assert.equal(JSON.parse(m.files.get('capital-state.txt')).spent,spent,'restart does not duplicate purchases');
+ assert(m.events.lastIndexOf('write:data/capital-state.txt')<m.events.lastIndexOf('buy'));
+ const spent=JSON.parse(m.files.get('data/capital-state.txt')).spent;
+ await tick(m.ns,{});assert.equal(JSON.parse(m.files.get('data/capital-state.txt')).spent,spent,'restart does not duplicate purchases');
 }
 {
  const m=mock({load:0.1});for(let i=0;i<5;i++)await tick(m.ns,m.runtime??={});assert.equal(m.buys.length,0,'sharing is not demand');
- m.files.set('capital-config.txt','{"enabled":false}');m.state.load=0.9;
+ m.files.set('data/capital-config.txt','{"enabled":false}');m.state.load=0.9;
  for(let i=0;i<4;i++)await tick(m.ns,m.runtime);assert.equal(m.buys.length,0);
 }
 {
@@ -61,25 +61,25 @@ for(const crash of [false,true]){
  const m=mock({cash:2e9}),r={};m.state.fail=!crash;m.state.crash=crash;
  await tick(m.ns,r);await tick(m.ns,r);
  if(crash)await assert.rejects(tick(m.ns,r),/interrupted/);else await tick(m.ns,r);
- const charged=JSON.parse(m.files.get('capital-state.txt')).spent;
+ const charged=JSON.parse(m.files.get('data/capital-state.txt')).spent;
  assert.equal(charged,crash?56320000:0,'failed quote refunded; crash conservatively charged');
 }
 {
- const m=mock({cash:2e9}),r={};m.files.set('capital-config.txt','{"maxFleetRam":1024}');
+ const m=mock({cash:2e9}),r={};m.files.set('data/capital-config.txt','{"maxFleetRam":1024}');
  for(let i=0;i<4;i++)await tick(m.ns,r);assert.equal(m.buys.length,0);
- m.files.set('capital-state.txt','broken');await assert.rejects(tick(m.ns,r));assert.equal(m.buys.length,0);
+ m.files.set('data/capital-state.txt','broken');await assert.rejects(tick(m.ns,r));assert.equal(m.buys.length,0);
 }
 // Fresh augmentation epoch discards old credit; a missing controller blocks spending.
 {
  const m=mock({cash:2e9}),r={};await tick(m.ns,r);m.state.epoch=3;m.state.cash=1000;
- await tick(m.ns,r);const saved=JSON.parse(m.files.get('capital-state.txt'));assert.equal(saved.seed,50);assert.equal(saved.spent,0);
+ await tick(m.ns,r);const saved=JSON.parse(m.files.get('data/capital-state.txt'));assert.equal(saved.seed,50);assert.equal(saved.spent,0);
  const offline=mock({empty:true});offline.state.controller=false;await tick(offline.ns,{});assert.equal(offline.buys.length,0);
 }
 console.log('PASS: budget persistence, reset identity, reserve, pause, cloud demand/caps, Hacknet ROI, failure and crash accounting.');
 
 {
  const m=mock({cash:2e9}),r={};m.ns.cloud.getServerLimit=()=>25;
- m.files.set('capital-config.txt','{"maxServerRam":64}');
+ m.files.set('data/capital-config.txt','{"maxServerRam":64}');
  m.hosts['worker-01']=64;
  for(let i=0;i<3;i++)await tick(m.ns,r);
  assert.equal(m.hosts['worker-02'],64,'new nodes use collision-free generic names');

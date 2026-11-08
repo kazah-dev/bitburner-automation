@@ -1,7 +1,11 @@
-# Runtime state and private playthrough snapshots
+# Private runtime state, exports and rollback copies
+data/
+archive/
+node_modules/
+*.json.gz
+*.save
+*.log
 *-status.txt
 contracts-rejected.txt
 capital-state.txt
 capital-config.txt
-*.save
-*.log

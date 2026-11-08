@@ -2,18 +2,18 @@
  * @param {NS} ns
  */
 export async function main(ns) {
-  const worker = "inicio.js";
-  if (ns.ps("home").some(p => p.filename === "cycle.js")) {
-    ns.tprint("Stop cycle.js before using legacy deployment.");
+  const worker = "legacy/inicio.js";
+  if (ns.ps("home").some(p => p.filename === "services/cycle.js")) {
+    ns.tprint("Stop services/cycle.js before using legacy deployment.");
     return;
   }
   if (ns.getHostname() !== "home") {
-    ns.tprint("Run deploy.js from home.");
+    ns.tprint("Run legacy/deploy.js from home.");
     return;
   }
   const workerRam = ns.getScriptRam(worker, "home");
   if (workerRam <= 0) {
-    ns.tprint("Missing worker: inicio.js on home.");
+    ns.tprint("Missing worker: legacy/inicio.js on home.");
     return;
   }
 

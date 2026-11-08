@@ -66,7 +66,7 @@ function largestPrimeFactor(value) {
 /** @param {NS} ns */
 export async function main(ns) {
   if (ns.getHostname() !== "home" || ns.args.length) {
-    ns.tprint("Start one copy on home: run contracts.js");
+    ns.tprint("Start one copy on home: run services/contracts.js");
     return;
   }
   ns.disableLog("ALL");
@@ -74,7 +74,7 @@ export async function main(ns) {
     ns.tprint("A contract scanner is already running.");
     return;
   }
-  const rejectedFile = "contracts-rejected.txt";
+  const rejectedFile = "data/contracts-rejected.txt";
   const rejected = new Set(ns.read(rejectedFile).split("\n").filter(Boolean));
   while (true) {
     const hosts = new Set(["home"]);

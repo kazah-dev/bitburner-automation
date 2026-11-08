@@ -1,5 +1,5 @@
 /** Bounded infrastructure investment without Singularity. Run on home. */
-const STATE = 'capital-state.txt', CONFIG = 'capital-config.txt', STATUS = 'capital-status.txt';
+const STATE = 'data/capital-state.txt', CONFIG = 'data/capital-config.txt', STATUS = 'data/capital-status.txt';
 export const defaults = Object.freeze({enabled:true, minCash:1e6, maxFleetRam:65536,
   maxServerRam:8192, paybackSeconds:1800});
 const finite = n => Number.isFinite(n) && n >= 0;
@@ -87,10 +87,10 @@ function demand(ns) {
   const hosts=['home'],seen=new Set(hosts);
   for(const h of hosts) for(const peer of ns.scan(h)) if(!seen.has(peer)){seen.add(peer);hosts.push(peer);}
   let capacity=0,busy=0;
-  const unit=ns.getScriptRam('task.js','home');
+  const unit=ns.getScriptRam('workers/task.js','home');
   for(const host of hosts) if(ns.hasRootAccess(host)) {
     capacity+=Math.max(0,ns.getServerMaxRam(host)-(host==='home'?32:0));
-    busy+=ns.ps(host).filter(p=>p.filename==='task.js').reduce((n,p)=>n+p.threads*unit,0);
+    busy+=ns.ps(host).filter(p=>p.filename==='workers/task.js').reduce((n,p)=>n+p.threads*unit,0);
   }
   return capacity>0?busy/capacity:0;
 }
@@ -107,7 +107,7 @@ export async function tick(ns, runtime) {
   runtime.pressure=load>=0.60?runtime.pressure+1:0;
   await ns.write(STATE,JSON.stringify(s),'w');
   let budget=allowance(s,cash(),reserve), spentThisPass=0, purchases=0;
-  const controller=ns.ps('home').some(p=>p.filename==='cycle.js');
+  const controller=ns.ps('home').some(p=>p.filename==='services/cycle.js');
   let reason=!c.enabled?'Purchases paused':!controller?'Waiting for hacking controller':'Waiting for affordable investment';
   if(c.enabled&&controller) for(let step=0;step<8;step++) {
     // Prefer short-payback Hacknet opportunities. Cloud expansion requires
@@ -135,7 +135,7 @@ export async function tick(ns, runtime) {
 /** @param {NS} ns */
 export async function main(ns) {
   ns.disableLog('ALL');
-  if(ns.getHostname()!=='home')throw Error('Run capital.js on home');
+  if(ns.getHostname()!=='home')throw Error('Run services/capital.js on home');
   if(ns.ps('home').some(p=>p.filename===ns.getScriptName()&&p.pid<ns.pid))return;
   const runtime={};let previous='';
   while(true){

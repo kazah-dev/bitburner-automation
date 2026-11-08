@@ -1,5 +1,5 @@
 /** Invest a bounded budget in Hacknet upgrades with a payback estimate.
- * Usage: run hacknet.js 500000
+ * Usage: run tools/hacknet.js 500000
  * Caps spending at 10% of the current balance and ignores paybacks over 30 minutes.
  * @param {NS} ns
  */
