@@ -7,6 +7,9 @@ export async function main(ns) {
   // owner deterministically so simultaneous copies cannot both exit.
   if(ns.ps('home').some(p=>p.filename===ns.getScriptName()&&p.pid<ns.pid))return;
   const services=[['services/cycle.js',['auto',32,'share',4]],['services/contracts.js',[]],['ui/monitor.js',[2000]],['services/capital.js',[]]];
+  if(ns.fileExists?.('services/stocks.js','home'))services.push(['services/stocks.js',[]]);
+  if(ns.fileExists?.('DarkscapeNavigator.exe','home')&&ns.fileExists?.('services/darknet.js','home'))services.push(['services/darknet.js',[]]);
+  if(ns.corporation?.hasCorporation()&&ns.fileExists?.('services/corporation.js','home'))services.unshift(['services/corporation.js',[]]);
   const retry=new Map();
   while(true){
     for(const [file,args]of services){
