@@ -33,6 +33,9 @@ export function productPrice(product) {
   else if(product.productionAmount>0&&product.actualSellAmount>=product.productionAmount*.98&&product.stored<product.productionAmount*2)multiplier*=1.08;
   return 'MP*'+Math.max(.1,Math.min(1e6,multiplier)).toFixed(4);
 }
+export function storagePressure(warehouse,outputs) {
+  return warehouse.sizeUsed>warehouse.size*.75&&!outputs.some(x=>x.stored>Math.max(1,x.productionAmount)*20);
+}
 export function assignOffice(ns,name,city,product,hq) {
   let o=ns.corporation.getOffice(name,city);
   // A failed hire must not become an infinite loop.
@@ -77,7 +80,9 @@ export function maintain(ns) {
             if(initial.divisions.includes(route.division))ns.corporation.cancelExportMaterial(name,city,route.division,route.city,material);
         }
         const w=ns.corporation.getWarehouse(name,city);
-        if(w.sizeUsed>w.size*.75)spend(ns.corporation.getUpgradeWarehouseCost(name,city),`${name}: storage ${city}`,()=>ns.corporation.upgradeWarehouse(name,city));
+        const outputs=(industry.producedMaterials??[]).map(m=>ns.corporation.getMaterial(name,city,m));
+        if(d.makesProducts)outputs.push(...d.products.map(p=>ns.corporation.getProduct(name,city,p)).filter(p=>p.developmentProgress>=100));
+        if(storagePressure(w,outputs))spend(ns.corporation.getUpgradeWarehouseCost(name,city),`${name}: storage ${city}`,()=>ns.corporation.upgradeWarehouse(name,city));
         if(FACTORS[d.industry]){
           const sizes=BOOSTS.map(m=>ns.corporation.getMaterialData(m).size);
           const targets=boostTargets(w.size*.60,sizes,FACTORS[d.industry]);
@@ -89,7 +94,8 @@ export function maintain(ns) {
           }
         }
         for(const material of industry.producedMaterials??[]) {
-          ns.corporation.sellMaterial(name,city,material,'MAX','MP');
+          const inventory=ns.corporation.getMaterial(name,city,material);
+          ns.corporation.sellMaterial(name,city,material,'MAX',productPrice(inventory));
           if(ns.corporation.hasResearched(name,'Market-TA.II'))ns.corporation.setMaterialMarketTA2(name,city,material,true);
         }
       }
