@@ -26,6 +26,6 @@ let attempts=0,written='',ticks=0;
 const ns={args:[],getHostname:()=> 'home',getScriptName:()=> 'services/contracts.js',ps:()=>[{filename:'services/contracts.js'}],
  disableLog(){},read:()=>'',scan:()=>[],ls:()=>['bad.cct','unknown.cct'],tprint(){},print(){},
  codingcontract:{getContractType:f=>f==='bad.cct'?'Subarray with Maximum Sum':'Unknown',getData:()=>[-1,3,-1],attempt:()=>{attempts++;return '';}},
- write:async(_f,s)=>{written+=s;},sleep:async()=>{if(++ticks===3)throw Error('STOP');}};
+ write:async(f,s)=>{if(f==='data/contracts-rejected.txt')written+=s;},sleep:async(ms)=>{if(ms===60000&&++ticks===2)throw Error('STOP');}};
 await assert.rejects(main(ns),/STOP/);assert.equal(attempts,1);assert.equal(written,'home/bad.cct\n');
 console.log('PASS: 700 subarray comparisons, 100 partition recurrence comparisons, numeric guards and rejected-answer quarantine.');
