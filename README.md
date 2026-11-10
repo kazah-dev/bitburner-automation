@@ -1,6 +1,6 @@
 # Bitburner Automation
 
-An evolving Netscript toolkit for coordinated farming, supported coding contracts, bounded infrastructure investment and a live in-game monitor. Implementation history and validation are shared here; transient playthrough statistics stay in the game.
+A Netscript toolkit for coordinated farming, coding contracts, bounded investment, corporation maintenance, 4S trading and Darknet exploration. Implementation history and validation are shared here; transient playthrough statistics stay in the game.
 
 ## Quick start
 
@@ -28,12 +28,17 @@ Copy the runtime JavaScript files to **home**, preserving their folder paths, th
 
 - **Farming:** up to four independent targets, selected using estimated complete-cycle returns and preparation costs. Each target finishes one phase before starting the next. New port openers and available RAM are discovered automatically; unrelated scripts and the home RAM reserve are preserved.
 - **Sharing:** spare capacity supports faction work. Tagged sharing workers release RAM when farming needs it, and do not count as demand for infrastructure purchases.
-- **Contracts:** Algorithmic Stock Trader I, Encryption I: Caesar Cipher, Find Largest Prime Factor, Subarray with Maximum Sum and Total Ways to Sum. Unsupported inputs remain untouched; rejected answers are quarantined across restarts.
+- **Contracts:** 22 puzzle types, including stock trading I–IV, both jumping games, RLE compression, LZ decompression, both ciphers, prime counting, exact BigInt square roots, partitions, grid paths, intervals, IP addresses, matrix traversal and triangle paths. Unsupported inputs remain untouched; rejected answers are quarantined across restarts. Large queues yield between files.
 - **Investment:** persistent spending allowance, cash reserves, per-pass limits, measured farming demand and estimated Hacknet payback constrain purchases. Cloud servers are upgraded in place.
 - **Monitoring:** generic operational metrics and recent trends, without personal branding, progression goals or reminders. Planning estimates are separate from measured income.
 - **Recovery:** missing services are checked every 30 seconds, with bounded retries and deterministic ownership on reload.
+- **Corporation:** maintains existing divisions, hires and assigns employees, enables Smart Supply, develops and sells products, researches upgrades and expands constrained offices and warehouses within a per-cycle budget. Investment acceptance, new divisions, IPO and dividends remain deliberate decisions.
+- **Stocks:** long-only 4S trading, with entry/exit hysteresis, a 20% portfolio allocation cap, a 4% allocation per symbol, commission checks and an 80% cash reserve. Forecasts are probabilistic; this is a game strategy, not guaranteed profit.
+- **Darknet:** supervised exploration of seven supported in-game puzzle models and cache collection. Unrecognized models remain untouched; workers stop when their supervisor disappears. No Storm Seed execution.
 
 The toolkit does not automate faction membership, work selection, backdoors, TOR/program purchases, home upgrades or augmentation resets. Those progression actions require manual interaction until the relevant Singularity APIs are unlocked. All scripts operate inside Bitburner's simulated environment and spend only game currency.
+
+For an imported `scripts/` installation, see [adoption and advanced services](docs/ADVANCED.md). Export a save first; `tools/adopt.js` previews the operation and `tools/adopt.js apply` archives the old source locally before starting this toolkit. Do not run both sets of controllers together.
 
 ## Controls
 
