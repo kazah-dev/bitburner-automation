@@ -10,8 +10,9 @@ export async function main(ns) {
   }
   const player=ns.getPlayer();
   const report={time:Date.now(),money:player.money,skills:player.skills,factions:player.factions,
+    darknetEntry:ns.serverExists('darkweb')?{server:ns.getServer('darkweb'),processes:ns.ps('darkweb')}:null,
     income:ns.getTotalScriptIncome(),servers,contracts,routes,files:ns.ls('home'),
     hacknet:Array.from({length:ns.hacknet.numNodes()},(_,i)=>ns.hacknet.getNodeStats(i))};
-  await ns.write('data/audit-status.txt',JSON.stringify(report),'w');
+  await ns.write('data/audit-status.txt',JSON.stringify(report,(_key,value)=>typeof value==='bigint'?value.toString():value),'w');
   ns.tprint(servers.length+' servers; '+contracts.length+' contracts. Details: data/audit-status.txt');
 }
