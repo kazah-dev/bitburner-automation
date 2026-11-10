@@ -31,12 +31,18 @@ function snapshot(ns) {
   const farmingWorkers = processes.filter(p => p.filename === "workers/task.js");
   const phase = workers[0]?.args[0] ?? (controller ? "waiting" : "idle");
   const player = ns.getPlayer();
+  const status = (name) => {
+    try { const value=JSON.parse(ns.read('data/'+name+'-status.txt')||'null');
+      return value&&Date.now()-value.updatedAt<90000&&processes.some(p=>p.pid===value.pid)?value:null;
+    } catch { return null; }
+  };
   const home = hosts.find(host => host.name === "home");
   const owned = programs.filter(([file]) => ns.fileExists(file, "home"));
   const nodes = ns.hacknet.numNodes();
   const hacknet = sum(Array.from({length: nodes}, (_, i) => ns.hacknet.getNodeStats(i)), n => n.production);
   const times = target ? [ns.getHackTime(name), ns.getGrowTime(name), ns.getWeakenTime(name)] : [];
   return { time: Date.now(), hosts: network, home, target, phase, player, owned, nodes, hacknet, times,
+    business:status('corporation'),stocks:status('stocks'),darknet:status('darknet'),contractStatus:status('contracts'),
     income: ns.getTotalScriptIncome(), processes, workers, farmingWorkers, controller, policy,
     rooted: network.filter(h => h.hasAdminRights).length,
     ram: sum(network, h => h.hasAdminRights ? h.maxRam : 0),
@@ -112,7 +118,22 @@ function overview(d, history) {
       h("strong",null,fmt.format(d.shares)+" reputation-sharing threads"),
       small("Automatic sharing gives RAM back before the next hacking phase. Manual sharing stays reserved."),
       h("strong",null,fmt.format(d.used)+" / "+fmt.format(d.ram)+" GB in use"),bar(d.used,d.ram,palette.blue),
-      small(d.rooted+" of "+d.hosts.length+" servers under your control."))));
+      small(d.rooted+" of "+d.hosts.length+" servers under your control."))),
+    business(d));
+}
+function business(d) {
+  const c=d.business,s=d.stocks,n=d.darknet;
+  return grid(card('Corporation',digits(c?rate(c.profit??0):'Not running',palette.mint),
+    small('Net business profit · separate from personal cash'),
+    small(c?'Treasury '+cash(c.funds??0)+' · Dividends '+rate(c.dividends??0):'No recent service report'),
+    ...(c?.divisions??[]).map(x=>small(x.name+' · Research '+fmt.format(x.research)+' · '+x.products.map(p=>p.name+' '+p.progress.toFixed(1)+'%').join(', '))),
+    ...(c?.errors??[]).map(e=>small('Attention: '+e))),
+    card('Stock portfolio',digits(s?cash(s.exposure??0):'Not running',palette.blue),
+      small(s?.reason??'No recent service report'),small('Market exposure · not profit'),
+      small(s?'Session realized P/L '+cash(s.realized??0)+' · '+s.positions.length+' holdings':'Waiting for market data')),
+    card('Darknet & contracts',digits(n?String(n.servers)+' servers':'Not running',palette.gold),
+      small(n?.reason??'No recent Darknet report'),small(n?String(n.caches)+' caches opened by active workers':'Cache collection unavailable'),
+      small(d.contractStatus?'Contracts solved this session: '+d.contractStatus.solvedTotal+' · Pending '+d.contractStatus.pending:'Contract scanner collecting data')));
 }
 function networkView(d, selected, select) {
   const host = d.hosts.find(s=>s.name===selected) ?? d.home;
